@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Manga Reader Translator",
+  "version": "1.0",
+  "description": "Deteta e traduz balões de mangá em tempo real.",
+  "permissions": [
+    "storage", 
+    "unlimitedStorage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
