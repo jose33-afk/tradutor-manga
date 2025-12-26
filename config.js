@@ -1,0 +1,3 @@
+const API_CONFIG = {
+  OCR_KEY: "K86671883488957"
+};
