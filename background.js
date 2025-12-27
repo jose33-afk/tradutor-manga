@@ -41,11 +41,25 @@ async function processarImagens(urls) {
         } else {
           console.log("Imagem nova detectada. Baixando..."); 
 
-          const resposta = await fetch(url);
-          const imagemBlob = await resposta.blob(); //converte os dados recebidos em um obj de imagem binaria. \
+          let urlLimpa = url.split('?')[0].toLowerCase();
+          const extensoesSuportadas = ['.jpg', '.jpeg', '.png', '.webp'];
+          const ehSuportada = extensoesSuportadas.some(ext => urlLimpa.endsWith(ext)); //forma bem util.
+          
+          if (!ehSuportada) {
+            console.log('Formato n suportado:', url ,'pulando..');
+            return;
+          };
 
-          const transacaoGravacao = db.transaction(["paginas"], "readwrite");
-          const gavetaGravacao = transacaoGravacao.objectStore("paginas");
+          const resposta = await fetch(url);
+          const imagemBlob = await resposta.blob(); //converte os dados recebidos em um obj de imagem binaria. 
+
+          if (imagemBlob.size < 30000) { //mínimo 30KB para evitar ícones/anúncios
+            console.log('Imagem com tamanho menor que 30kb ignorando...   :', url);
+            return;
+          }; 
+
+          const acesso = db.transaction(["paginas"], "readwrite");
+          const gavetaGravacao = acesso.objectStore("paginas");
           
           const pedindoPut = gavetaGravacao.put({
             url,
@@ -54,14 +68,11 @@ async function processarImagens(urls) {
           });
           
           pedindoPut.onsuccess = () => {
-            if (url.endsWith(".svg") || url.includes("mascot") || url.includes("cta/")) {
-              console.log("Ignorando imagem irrelevante para OCR:", url);
-              return; 
-            }
 
-            console.log(`Salvo: ${url}. Adicionando a fila de OCR..`);
-            filaDeTraducao.push(url);
-            processarProximoDaFila();
+            if (urlLimpa.endsWith('.webp')) console.log('url web', urlLimpa); //manda para fucao que converte para jpg
+
+            //filaDeTraducao.push(url);
+            //processarProximoDaFila(); //desativada para testes.
           };
         };
       };
