@@ -1,4 +1,4 @@
-importScripts('config.js', 'ocr_service.js');
+importScripts('config.js', 'ocr_service.js', 'filtro.js');
 const requestDB = indexedDB.open('MangaCache', 1); //abre um arquivo no HD do usuario.
 let db; //Para outras funcoes.
 let filaDeTraducao = [];
@@ -41,39 +41,30 @@ async function processarImagens(urls) {
         } else {
           console.log("Imagem nova detectada. Baixando..."); 
 
-          let urlLimpa = url.split('?')[0].toLowerCase();
-          const extensoesSuportadas = ['.jpg', '.jpeg', '.png', '.webp'];
-          const ehSuportada = extensoesSuportadas.some(ext => urlLimpa.endsWith(ext)); //forma bem util.
+          //let urlVerif = await filtroImg(url);
+      
+          //
+          // if (imagemBlob.size < 30000) { //mínimo 30KB para evitar ícones/anúncios
+          //   console.log('Imagem com tamanho menor que 30kb ignorando...   :', url);
+          //   return;
+          // }; 
+
+          // const acesso = db.transaction(["paginas"], "readwrite");
+          // const gavetaGravacao = acesso.objectStore("paginas");
           
-          if (!ehSuportada) {
-            console.log('Formato n suportado:', url ,'pulando..');
-            return;
-          };
-
-          const resposta = await fetch(url);
-          const imagemBlob = await resposta.blob(); //converte os dados recebidos em um obj de imagem binaria. 
-
-          if (imagemBlob.size < 30000) { //mínimo 30KB para evitar ícones/anúncios
-            console.log('Imagem com tamanho menor que 30kb ignorando...   :', url);
-            return;
-          }; 
-
-          const acesso = db.transaction(["paginas"], "readwrite");
-          const gavetaGravacao = acesso.objectStore("paginas");
+          // const pedindoPut = gavetaGravacao.put({
+          //   url,
+          //   dados: imagemBlob,
+          //   data: new Date()
+          // });
           
-          const pedindoPut = gavetaGravacao.put({
-            url,
-            dados: imagemBlob,
-            data: new Date()
-          });
-          
-          pedindoPut.onsuccess = () => {
+          // pedindoPut.onsuccess = () => {
 
-            if (urlLimpa.endsWith('.webp')) console.log('url web', urlLimpa); //manda para fucao que converte para jpg
+          //   if (urlLimpa.endsWith('.webp')) console.log('url web', urlLimpa); //manda para fucao que converte para jpg
 
-            //filaDeTraducao.push(url);
-            //processarProximoDaFila(); //desativada para testes.
-          };
+          //   //filaDeTraducao.push(url);
+          //   //processarProximoDaFila(); //desativada para testes.
+          // };
         };
       };
     } catch (error) {
