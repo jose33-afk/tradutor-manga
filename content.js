@@ -35,7 +35,8 @@ function capturarImgemDaTela(imgElement) {
 
       const ctx = canvas.getContext('2d');
       ctx.drawImage(imgElement, 0, 0);
-
+      
+      //Converte para Base64
       const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
       resolve(dataUrl);
     } catch (e){

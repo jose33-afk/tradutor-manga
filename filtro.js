@@ -14,7 +14,7 @@ async function filtroImg(url) {
   
 
 
-  // const resposta = await fetch(url);
+  // const resposta = await fetch(url); nao preciso mais transformar em blob
   // const imagemBlob = await resposta.blob(); //converte os dados recebidos em um obj de imagem binaria. 
 
   // if (imagemBlob.size === 0 || !imagemBlob.type.includes('image')) {
