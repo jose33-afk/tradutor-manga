@@ -1,33 +1,42 @@
-function findMangaPages() {
+async function findMangaPages() {
   const images = Array.from(document.querySelectorAll('img'));
   
   //Para Evitar de pegar icones, logotipos ou banners.
-  const pages = images.filter((img) => img.naturalWidth > 500 || img.width > 500);
-  
-  if (pages.length > 0) {
-    console.log(`Encontradas ${pages.length} possiveis paginas.`);
+  const pages = images
+    .filter((img) => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450)
+    .map(img => ({
+      img,
+      url: img.src
+    }));
+  console.log(pages)
+  // if (pages.length > 0) {
+  //   console.log(`Encontradas ${pages.length} possiveis paginas.`);
 
-    copyImgs = pages.map((img) => capturarImgemDaTela(img));
-    console.log(copyImgs)
-    // const urls = pages.map(img => img.src);
-    
-    // chrome.runtime.sendMessage({
-    //   action: "PROCESSAR_CAPITOLO",
-    //   dadosExtras: {
-    //     site: window.location.hostname,
-    //     titulo: document.title,
-    //   },
-    //   data: urls
-    // });
-  };
+  //   const promises = pages.map((pages) => capturarImgemDaTela(pages.img, pages.url));
+  //   const listaImgs = await Promise.all(promises);
+
+  //   chrome.runtime.sendMessage({
+  //     action: "PROCESSAR_CAPITOLO",
+  //     dadosExtras: {
+  //       site: window.location.hostname,
+  //       titulo: document.title,
+  //     },
+  //     data: listaImgs
+  //   });
+  // };
 };
 
 window.addEventListener('load', () => {
   setTimeout(findMangaPages, 2000); //delay para garantir que as imgs via js carregaram.
 });
 
-function capturarImgemDaTela(imgElement) {
+function capturarImgemDaTela(imgElement, url) {
   return new Promise((resolve, reject) => {
+    if (!imgElement.complete || imgElement.naturalWidth === 0) {
+      reject(new Error("A imagem ainda nao foi carregada ou esta quebrada"));
+      return;
+    }
+
     try {
       const canvas = document.createElement('canvas');
       canvas.width = imgElement.naturalWidth;
@@ -36,9 +45,8 @@ function capturarImgemDaTela(imgElement) {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(imgElement, 0, 0);
       
-      //Converte para Base64
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      resolve(dataUrl);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);//Converte para Base64
+      resolve({img: dataUrl, url});
     } catch (e){
       reject('Erro ao converter imagem: ', e);
     };
