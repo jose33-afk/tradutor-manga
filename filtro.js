@@ -1,24 +1,39 @@
-async function filtroImg(url) {
-  let urlLimpa = await url.split('?')[0].toLowerCase();
-  const extensoesSuportadas = ['.jpg', '.jpeg', '.png', '.webp'];
-  const ehSuportada = extensoesSuportadas.some(ext => urlLimpa.endsWith(ext)); //forma bem util.
+export async function filtroImg(url) { //sim n da para usar import mas precisa do export
+  try {
+    //console.log(url) teste
+    //console.log(url.slice(0, 4)) teste
+    const response = await fetch(url);
+    const dataBlob = await response.blob();
 
-  if (!ehSuportada) {
-    console.log('Formato n suportado:', url ,'pulando..');
-    return false;
+    if (dataBlob.size === 0 || !dataBlob.type.includes('image')) {
+      console.log('Arquivo ignorado: Nao e uma imagem valida ou esta vazio.', dataBlob, 'url:', url);
+      return;
+    };
+
+    const ExtensaoImg = dataBlob.type.split('/')[1]; //Eu separo em duas e depois pego a segunda.
+    const extensoesSuportadas = ['jpg', 'jpeg', 'png', 'webp'];
+    let ehSuportada;
+
+    ehSuportada = extensoesSuportadas.some(ext => ExtensaoImg === ext); //O some e ao contrario.
+
+    if (!ehSuportada) {
+      console.log(`Nao podemos proseguir com a img:${url} url nao suportada: ${ExtensaoImg}`);
+      return ;
+    };
+
+    //if (ExtensaoImg = 'webp') dataBlob = converterWebp(dataBlob);
+
+    return { blob: dataBlob, url };
+  } catch(e) {
+    console.error('Erro ao buscar os dados do blob:', e);
+    return;
   };
-
-  const origin = new URL(url).host;
-  console.log(origin)
-
-  
-
-
-  // const resposta = await fetch(url); nao preciso mais transformar em blob
-  // const imagemBlob = await resposta.blob(); //converte os dados recebidos em um obj de imagem binaria. 
-
-  // if (imagemBlob.size === 0 || !imagemBlob.type.includes('image')) {
-  //   console.log('Arquivo ignorado: Nao e uma imagem valida ou esta vazio.', imagemBlob, 'url:', url);
-  //   return;
-  // };
 };
+
+
+// async function converterWebp(blobWebp) {
+//   return new Promise((resolve, reject) => {
+//     const url = URL.createObjectURL(blobWebp);
+//     console.log(url)
+//   });
+// };

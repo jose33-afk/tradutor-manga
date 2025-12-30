@@ -1,4 +1,4 @@
-importScripts('config.js', 'ocr_service.js', 'filtro.js');
+importScripts('config.js', 'ocr_service.js');
 const requestDB = indexedDB.open('MangaCache', 1); //abre um arquivo no HD do usuario.
 let db; //Para outras funcoes.
 let filaDeTraducao = [];
@@ -21,7 +21,7 @@ requestDB.onsuccess = (event) => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "PROCESSAR_CAPITOLO") {
-    console.log('Iniciando download das imagens...');
+    console.log('Iniciando processamento...');
     processarImagens(request.data); //Funcao assincrona para n travar o navegador.
   };
 });
@@ -40,9 +40,10 @@ async function processarImagens(urls) {
           console.log(`A pagina ja esta no cache (ID: ${consulta.result.id})`);
         } else {
           console.log("Imagem nova detectada. Baixando..."); 
+          
+          //let imgPosFiltro = await filtroImg(url)
+          console.log(url)
 
-          //let urlVerif = await filtroImg(url);
-      
           //
           // if (imagemBlob.size < 30000) { //mínimo 30KB para evitar ícones/anúncios
           //   console.log('Imagem com tamanho menor que 30kb ignorando...   :', url);
@@ -52,6 +53,7 @@ async function processarImagens(urls) {
           // const acesso = db.transaction(["paginas"], "readwrite");
           // const gavetaGravacao = acesso.objectStore("paginas");
           
+          //e eu n vou par a img e sim a traducao e a referencia continua sendo a ulr 
           // const pedindoPut = gavetaGravacao.put({
           //   url,
           //   dados: imagemBlob,

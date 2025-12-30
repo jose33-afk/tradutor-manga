@@ -1,13 +1,14 @@
 async function extrairText(url, dbInstancia) {
   return new Promise((resolve, reject) => {
-    const acesso = dbInstancia.transaction(["paginas"], "readonly");
-    const gaveta = acesso.objectStore("paginas");
-    const indice = gaveta.index("urlIndex");
-    const busca = indice.get(url);
+    //eu vou ter que alterar
+    // const acesso = dbInstancia.transaction(["paginas"], "readonly");
+    // const gaveta = acesso.objectStore("paginas");
+    // const indice = gaveta.index("urlIndex");
+    // const busca = indice.get(url);
 
-    busca.onsuccess = async () => {
-      const registro = busca.result;
-      if (!registro) return reject("Imagem nao encontrada no banco");
+    // busca.onsuccess = async () => {
+    //   const registro = busca.result;
+    //   if (!registro) return reject("Imagem nao encontrada no banco");
 
       //config api.
       let imgBlob = registro.dados;
@@ -43,6 +44,6 @@ async function extrairText(url, dbInstancia) {
       //   console.error("8. ERRO CRÍTICO no Fetch:", e); //REMOVER SOMENTE TESTE
       //   reject("Erro de rede ao conectar com OCR.space");
       // }
-    };
+    //};
   });
 };
