@@ -1,39 +1,67 @@
-export async function filtroImg(url) { //sim n da para usar import mas precisa do export
+export async function filtroImg(element, url) { //sim n da para usar import mas precisa do export
+  let response;
+
   try {
-    //console.log(url) teste
-    //console.log(url.slice(0, 4)) teste
-    const response = await fetch(url);
-    const dataBlob = await response.blob();
+    response = await fetch(url);
+  } catch (e) {
+    response = await capturarImgemDaTela(element, url);
+    
+    if(!response.sucesso) return;
+    response = response.blob;
+  };
 
-    if (dataBlob.size === 0 || !dataBlob.type.includes('image')) {
-      console.log('Arquivo ignorado: Nao e uma imagem valida ou esta vazio.', dataBlob, 'url:', url);
-      return;
-    };
+  try {
+    let dataBlob;
 
-    const ExtensaoImg = dataBlob.type.split('/')[1]; //Eu separo em duas e depois pego a segunda.
-    const extensoesSuportadas = ['jpg', 'jpeg', 'png', 'webp'];
-    let ehSuportada;
+    if (response instanceof Blob) dataBlob = response;
+    else dataBlob = await response.blob();
 
-    ehSuportada = extensoesSuportadas.some(ext => ExtensaoImg === ext); //O some e ao contrario.
+    console.log(dataBlob)
+    // if (dataBlob.size === 0 || !dataBlob.type.includes('image')) {
+    //   console.log('Arquivo ignorado: Nao e uma imagem valida ou esta vazio.', dataBlob, 'url:', url);
+    //   return;
+    // };
 
-    if (!ehSuportada) {
-      console.log(`Nao podemos proseguir com a img:${url} url nao suportada: ${ExtensaoImg}`);
-      return ;
-    };
+    // const ExtensaoImg = dataBlob.type.split('/')[1]; //Eu separo em duas e depois pego a segunda.
+    // const extensoesSuportadas = ['jpg', 'jpeg', 'png', 'webp'];
+    // let ehSuportada;
 
-    //if (ExtensaoImg = 'webp') dataBlob = converterWebp(dataBlob);
+    // ehSuportada = extensoesSuportadas.some(ext => ExtensaoImg === ext); //O some e ao contrario.
 
-    return { blob: dataBlob, url };
+    // if (!ehSuportada) {
+    //   console.log(`Nao podemos proseguir com a img:${url} url nao suportada: ${ExtensaoImg}`);
+    //   return;
+    // };
+
+    // return { blob: dataBlob, url };
   } catch(e) {
     console.error('Erro ao buscar os dados do blob:', e);
     return;
   };
 };
 
+function capturarImgemDaTela(imgElement, url) {
+  return new Promise((resolve, reject) => {
+    if (!imgElement.complete || imgElement.naturalWidth === 0) {
+      resolve(new Error("A imagem ainda nao foi carregada ou esta quebrada"));
+      return;
+    }
 
-// async function converterWebp(blobWebp) {
-//   return new Promise((resolve, reject) => {
-//     const url = URL.createObjectURL(blobWebp);
-//     console.log(url)
-//   });
-// };
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = imgElement.naturalWidth;
+      canvas.height = imgElement.naturalHeight;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgElement, 0, 0);
+
+      canvas.toBlob((blobGerado) => {
+        if (blobGerado) resolve( { blob: blobGerado, url, sucesso:true} );
+        else resolve({ sucesso: false });
+      });
+    } catch (e){
+      console.warn('Erro ao converter uma imagem específica:', e);
+      resolve({ blob: imgElement, url, sucesso:false });
+    };
+  });
+};
