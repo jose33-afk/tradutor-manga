@@ -17,6 +17,29 @@ export async function filtroImg(element, url) { //sim n da para usar import mas 
     else dataBlob = await response.blob();
 
     console.log(dataBlob)
+    if (dataBlob instanceof Blob) {
+      // 1. Cria a URL temporária para o navegador conseguir ler o binário
+      const urlTemporaria = URL.createObjectURL(dataBlob);
+
+      // 2. Cria um elemento de imagem para o teste
+      const debugImg = document.createElement('img');
+      debugImg.src = urlTemporaria;
+      
+      // Estiliza para não bagunçar o site original (fica pequeno no canto)
+      debugImg.style.cssText = `
+          width: 150px; 
+          border: 2px solid red; 
+          margin: 5px;
+          position: relative;
+          z-index: 999999;
+      `;
+
+      // 3. Joga no final do body para você conferir
+      document.body.appendChild(debugImg);
+
+      console.log("Visualização da página adicionada ao final do site.");
+    }
+
     // if (dataBlob.size === 0 || !dataBlob.type.includes('image')) {
     //   console.log('Arquivo ignorado: Nao e uma imagem valida ou esta vazio.', dataBlob, 'url:', url);
     //   return;
