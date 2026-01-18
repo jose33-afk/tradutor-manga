@@ -45,30 +45,42 @@ async function findMangaPages() {
 };
 
 window.addEventListener('load', () => {
-  setTimeout(() => encrontrarElementoDeScroll('img'), 5000)
+  setTimeout(() => encrontrarElementoDeScroll('img'), 2000)
   
   //setTimeout(() => findMangaPages(), 5000); //delay para garantir que as imgs via js carregaram.
 });
 
 
-function encrontrarElementoDeScroll(seletor) {
+function encrontrarElementoDeScroll(amostra) {
   const html = document.documentElement; //para funcionar em qualquer navegador.
   const body = document.body;
-  const imagens = document.querySelectorAll(seletor);
-  console.log(imagens)
 
   //O proprio navegador manda no scroll.   //1
-  if (html.scrollHeight > html.clientHeight || body.scrollHeight > body.clientHeight) return window;
+  //if (html.scrollHeight > html.clientHeight || body.scrollHeight > body.clientHeight) return window;
+  //linha acima comentada somente para testes, ela faz parte do codigo.
+
+  const imagens = Array.from(document.querySelectorAll('img')).slice(0, 15)
+        .filter((img) => img.offsetWidth > 300 && img.offsetHeight > img.offsetWidth); 
   
-  const indices = [
-    0, 
-    Math.floor(imagens.length * 0.33), //1/3 da pagina
-    Math.floor(imagens.length * 0.66),  //2/3 da pagina.
-    imagens.length - 1 
-  ]
+ 
+  console.log('Quantidade de imgs:', imagens.length)
 
-  console.log(indices)
+  for (let i = 0; i < imagens.length; i++) {
+    let alvo = imagens[i].parentElement;
 
+    while (alvo !== null && alvo !== html && alvo !== body) {
+      if (alvo.scrollHeight > alvo.clientHeight) {
+        console.log('tem scroll')
+        console.log(alvo)
+        return
+      } else {
+        console.log('nao tem scroll')
+      }
+
+      alvo = alvo.parentElement;
+      console.log('proximo pai');
+    };
+  };
 };
 
 // async function iniciarFluxoDeRolagem() {
