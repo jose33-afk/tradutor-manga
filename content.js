@@ -44,43 +44,65 @@ async function findMangaPages() {
  };
 };
 
-window.addEventListener('load', () => {
-  setTimeout(() => encrontrarElementoDeScroll('img'), 2000)
-  
+window.addEventListener('load', async () => {
+  let elementoScroll = await encrontrarElementoDeScroll();
+  console.log("elemento com scroll:", elementoScroll)
+  if (elementoScroll) {
+    console.log("Elemento encontrado:", elementoScroll.tagName || "WINDOW");
+
+    // Rola o elemento até o máximo de sua altura interna
+    elementoScroll.scrollTo({
+      top: elementoScroll.scrollHeight, 
+      behavior: 'smooth'
+    });
+  }
+
+  //TENHO QUE APLIMORAR ISSO PRA IR ROLANDO ATE A ACABAR AS IMGS
   //setTimeout(() => findMangaPages(), 5000); //delay para garantir que as imgs via js carregaram.
 });
 
 
-function encrontrarElementoDeScroll(amostra) {
-  const html = document.documentElement; //para funcionar em qualquer navegador.
-  const body = document.body;
 
-  //O proprio navegador manda no scroll.   //1
-  //if (html.scrollHeight > html.clientHeight || body.scrollHeight > body.clientHeight) return window;
-  //linha acima comentada somente para testes, ela faz parte do codigo.
+function encrontrarElementoDeScroll() {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const html = document.documentElement; 
+      const body = document.body; //para funcionar em qualquer navegador.
 
-  const imagens = Array.from(document.querySelectorAll('img')).slice(0, 15)
-        .filter((img) => img.offsetWidth > 300 && img.offsetHeight > img.offsetWidth); 
-  
- 
-  console.log('Quantidade de imgs:', imagens.length)
+      // Função auxiliar para checar se o CSS permite scroll.
+      const podeRolar = (element) => {
+        const style = window.getComputedStyle(element);
+        return style.overflowY !== 'hidden' && style.overflowY !== 'clip';
+      };
 
-  for (let i = 0; i < imagens.length; i++) {
-    let alvo = imagens[i].parentElement;
+      //COLOCAR ESSE VERIFICACAO NO WHILE, ALEM DE VERIFICAR A QUANTIDADE DE IMGS DO ALVO.
+      if (html.scrollHeight > html.clientHeight && podeRolar(html)) return resolve(html);
+      else if (body.scrollHeight > body.clientHeight && podeRolar(body)) return resolve(body);
 
-    while (alvo !== null && alvo !== html && alvo !== body) {
-      if (alvo.scrollHeight > alvo.clientHeight) {
-        console.log('tem scroll')
-        console.log(alvo)
-        return
-      } else {
-        console.log('nao tem scroll')
-      }
+      const imagens = Array.from(document.querySelectorAll('img')).slice(0, 15)
+            .filter((img) => img.offsetWidth > 300 && img.offsetHeight > img.offsetWidth); 
+      
+    
+      console.log('Quantidade de imgs:', imagens.length)
 
-      alvo = alvo.parentElement;
-      console.log('proximo pai');
-    };
-  };
+      for (let i = 0; i < imagens.length; i++) {
+        let alvo = imagens[i].parentElement;
+
+        while (alvo !== null && alvo !== html && alvo !== body) {
+          if (alvo.scrollHeight > alvo.clientHeight) {
+            console.log('tem scroll')
+            console.log("quantidade de imgs", alvo.querySelectorAll('img').length);
+            return resolve(alvo);
+          } else {
+            console.log('nao tem scroll')
+          }
+
+          alvo = alvo.parentElement;
+          console.log('proximo pai');
+        };
+      };
+    }, 2000);
+  });
 };
 
 // async function iniciarFluxoDeRolagem() {
