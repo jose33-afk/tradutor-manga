@@ -75,31 +75,27 @@ function encrontrarElementoDeScroll() {
         return style.overflowY !== 'hidden' && style.overflowY !== 'clip';
       };
 
-      //COLOCAR ESSE VERIFICACAO NO WHILE, ALEM DE VERIFICAR A QUANTIDADE DE IMGS DO ALVO.
       if (html.scrollHeight > html.clientHeight && podeRolar(html)) return resolve(html);
       else if (body.scrollHeight > body.clientHeight && podeRolar(body)) return resolve(body);
 
       const imagens = Array.from(document.querySelectorAll('img')).slice(0, 15)
             .filter((img) => img.offsetWidth > 300 && img.offsetHeight > img.offsetWidth); 
-      
-    
-      console.log('Quantidade de imgs:', imagens.length)
 
       for (let i = 0; i < imagens.length; i++) {
         let alvo = imagens[i].parentElement;
 
         while (alvo !== null && alvo !== html && alvo !== body) {
-          if (alvo.scrollHeight > alvo.clientHeight) {
-            console.log('tem scroll')
-            console.log("quantidade de imgs", alvo.querySelectorAll('img').length);
-            return resolve(alvo);
-          } else {
-            console.log('nao tem scroll')
-          }
+          if (alvo.scrollHeight > alvo.clientHeight && podeRolar(alvo)) {
+            const quantidadeInterna = alvo.querySelectorAll('img').length;
 
+            if (quantidadeInterna >= 2) return resolve(alvo);
+          };
+        
           alvo = alvo.parentElement;
-          console.log('proximo pai');
         };
+
+        console.log("Nenhum container específico achado, usando Window.");
+        resolve(window);
       };
     }, 2000);
   });
