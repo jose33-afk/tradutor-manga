@@ -44,24 +44,56 @@ async function findMangaPages() {
  };
 };
 
+const esperar = ms => new Promise(res => setTimeout(res, ms));//delay
+
 window.addEventListener('load', async () => {
   let elementoScroll = await encrontrarElementoDeScroll();
-  console.log("elemento com scroll:", elementoScroll)
-  if (elementoScroll) {
-    console.log("Elemento encontrado:", elementoScroll.tagName || "WINDOW");
 
-    // Rola o elemento até o máximo de sua altura interna
-    elementoScroll.scrollTo({
-      top: elementoScroll.scrollHeight, 
-      behavior: 'smooth'
-    });
-  }
+  await esperar(600);
+  carregarPaginaManga(elementoScroll);
 
   //TENHO QUE APLIMORAR ISSO PRA IR ROLANDO ATE A ACABAR AS IMGS
   //setTimeout(() => findMangaPages(), 5000); //delay para garantir que as imgs via js carregaram.
 });
 
+async function scrollSeguro(element) {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      element.scrollBy({
+        top: window.innerHeight * 0.8, //80% da altura da janela.
+        behavior: 'smooth'
+      });
+      setTimeout(resolve, 600); //Internet lenta/processador carregar.
+    });
+  });
+};
 
+async function carregarPaginaManga(scroller) {
+  let alturaAnterior = 0;
+  let tentativasSemMudanca = 0;
+
+  while (tentativasSemMudanca < 3) {
+    let alturaAtual = scroller.scrollHeight || document.documentElement.scrollHeight;
+    
+    await scrollSeguro(scroller);
+
+    if (alturaAtual > alturaAnterior) {
+      alturaAnterior = alturaAtual;
+      tentativasSemMudanca = 0;
+    } else tentativasSemMudanca++;
+
+
+    
+    //Eu tava tentando entender esse if;
+    let ondeOdisplayTermina = (scroller === window) 
+      ? window.scrollY + window.innerHeight
+      : scroller.scrollTop + scroller.clientHeight; 
+
+    if (ondeOdisplayTermina >= alturaAtual - 100) {//2
+
+    }
+  };
+}; 
 
 function encrontrarElementoDeScroll() {
   return new Promise((resolve) => {
@@ -101,23 +133,11 @@ function encrontrarElementoDeScroll() {
   });
 };
 
-// async function iniciarFluxoDeRolagem() {
-//   const scroller = window; //Quem vai entregar o elemento vai ser a funcao.
 
-//   //return new Promise((resolve) => {
-//     let ultimaAltura = 0;
-//     let contadorIgual = 0;
-
-//     const alturaTotal = scroller === window 
-//           ? document.documentElement.scrollHeight
-//           : scroller.scrollHeight;
-
-//     console.log(alturaTotal)
-//   //});
-// };
 
 /*
   1 - Client e altura da tela, scroll e o tamanho do conteudo do elemento mesmo se estiver oculto.
+  2 - scrollTop e a distancia que eu to do top da tela. eu somo a distanc
 */
 
 
