@@ -47,12 +47,22 @@ async function findMangaPages() {
 const esperar = ms => new Promise(res => setTimeout(res, ms));//delay
 
 window.addEventListener('load', async () => {
+  const caminhoDaFunc = chrome.runtime.getURL('popDescida.js');
+  const modulo = await import(caminhoDaFunc);
+
+  modulo.gerirPopup();
   let elementoScroll = await encrontrarElementoDeScroll();
 
   await esperar(600);
 
-  if(await carregarPaginaManga(elementoScroll)) console.log("Tudo pronto! Todas as imagens foram disparadas.");
-  else console.error("Falha ao percorrer o mangá.");
+  if(await carregarPaginaManga(elementoScroll)) {
+    console.log("Tudo pronto! Todas as imagens foram carregadas. voltando para o topo..");
+    elementoScroll.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+
+  } else console.error("Falha ao percorrer o mangá.");
 
   //TENHO QUE APLIMORAR ISSO PRA IR ROLANDO ATE A ACABAR AS IMGS
   //setTimeout(() => findMangaPages(), 5000); //delay para garantir que as imgs via js carregaram.
