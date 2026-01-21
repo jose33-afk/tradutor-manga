@@ -50,12 +50,15 @@ window.addEventListener('load', async () => {
   let elementoScroll = await encrontrarElementoDeScroll();
 
   await esperar(600);
-  carregarPaginaManga(elementoScroll);
+
+  if(await carregarPaginaManga(elementoScroll)) console.log("Tudo pronto! Todas as imagens foram disparadas.");
+  else console.error("Falha ao percorrer o mangá.");
 
   //TENHO QUE APLIMORAR ISSO PRA IR ROLANDO ATE A ACABAR AS IMGS
   //setTimeout(() => findMangaPages(), 5000); //delay para garantir que as imgs via js carregaram.
 });
 
+// --- Funcoes para rologem ate o final da pagina ---
 async function scrollSeguro(element) {
   return new Promise((resolve) => {
     requestAnimationFrame(() => {
@@ -68,35 +71,42 @@ async function scrollSeguro(element) {
   });
 };
 
+function chegouAoFim(s) {
+  const total = s.scrollHeight || document.documentElement.scrollHeight;
+  const visivel = s === window ? window.innerHeight : s.clientHeight;
+  const atual = s === window ? window.scrollY : s.scrollTop;
+  return atual + visivel >= total - 100;
+};
+
 function carregarPaginaManga(scroller) {
   return new Promise(async (resolve) => {
     let alturaAnterior = 0;
     let tentativasSemMudanca = 0;
+    let end = false;
+    const LIMITE_TENTATIVAS = 3;
 
     // --- MODO 1: Dinamico (Manga plus / Sites que crescem) ---
-    while (tentativasSemMudanca < 3) {
-      let alturaAtual = scroller.scrollHeight || document.documentElement.scrollHeight;
-      
+    while (tentativasSemMudanca < LIMITE_TENTATIVAS) {
       await scrollSeguro(scroller);
-    
-      if (alturaAtual > alturaAnterior) {
-        alturaAnterior = alturaAtual;
-        tentativasSemMudanca = 0;
-      } else tentativasSemMudanca++;
+      await esperar(500)
+      end = chegouAoFim(scroller);
 
-      let ondeOdisplayTermina = (scroller === window) 
-        ? window.scrollY + window.innerHeight
-        : scroller.scrollTop + scroller.clientHeight; 
+      if (end) {
+        let alturaAtual = scroller.scrollHeight || document.documentElement.scrollHeight;
 
-      if (ondeOdisplayTermina >= alturaAtual - 100) {//2
-        await esperar(1000);
-        if (alturaAtual === (scroller.scrollHeight || document.documentElement.scrollHeight)) break;
+        if (alturaAtual > alturaAnterior) {
+          alturaAnterior = alturaAtual;
+          tentativasSemMudanca = 0;
+        } else tentativasSemMudanca++;
       };
     };
-    console.log("✅ Carregamento finalizado ou fim da página atingido.");
+    
+    if (end) return resolve(true);
+    else return resolve(false)
   });
 }; 
 
+// -- Encontrar Elmento responsavel pelo scroll da pagina --
 function encrontrarElementoDeScroll() {
   return new Promise((resolve) => {
     setTimeout(() => {
