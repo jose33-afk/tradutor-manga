@@ -68,31 +68,33 @@ async function scrollSeguro(element) {
   });
 };
 
-async function carregarPaginaManga(scroller) {
-  let alturaAnterior = 0;
-  let tentativasSemMudanca = 0;
+function carregarPaginaManga(scroller) {
+  return new Promise(async (resolve) => {
+    let alturaAnterior = 0;
+    let tentativasSemMudanca = 0;
 
-  while (tentativasSemMudanca < 3) {
-    let alturaAtual = scroller.scrollHeight || document.documentElement.scrollHeight;
+    // --- MODO 1: Dinamico (Manga plus / Sites que crescem) ---
+    while (tentativasSemMudanca < 3) {
+      let alturaAtual = scroller.scrollHeight || document.documentElement.scrollHeight;
+      
+      await scrollSeguro(scroller);
     
-    await scrollSeguro(scroller);
+      if (alturaAtual > alturaAnterior) {
+        alturaAnterior = alturaAtual;
+        tentativasSemMudanca = 0;
+      } else tentativasSemMudanca++;
 
-    if (alturaAtual > alturaAnterior) {
-      alturaAnterior = alturaAtual;
-      tentativasSemMudanca = 0;
-    } else tentativasSemMudanca++;
+      let ondeOdisplayTermina = (scroller === window) 
+        ? window.scrollY + window.innerHeight
+        : scroller.scrollTop + scroller.clientHeight; 
 
-
-    
-    //Eu tava tentando entender esse if;
-    let ondeOdisplayTermina = (scroller === window) 
-      ? window.scrollY + window.innerHeight
-      : scroller.scrollTop + scroller.clientHeight; 
-
-    if (ondeOdisplayTermina >= alturaAtual - 100) {//2
-
-    }
-  };
+      if (ondeOdisplayTermina >= alturaAtual - 100) {//2
+        await esperar(1000);
+        if (alturaAtual === (scroller.scrollHeight || document.documentElement.scrollHeight)) break;
+      };
+    };
+    console.log("✅ Carregamento finalizado ou fim da página atingido.");
+  });
 }; 
 
 function encrontrarElementoDeScroll() {
