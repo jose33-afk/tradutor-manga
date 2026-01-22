@@ -50,18 +50,20 @@ window.addEventListener('load', async () => {
   const caminhoDaFunc = chrome.runtime.getURL('popDescida.js');
   const modulo = await import(caminhoDaFunc);
 
-  modulo.gerirPopup();
   let elementoScroll = await encrontrarElementoDeScroll();
+  if (elementoScroll) modulo.gerirPopup('abrir');
 
   await esperar(600);
 
   if(await carregarPaginaManga(elementoScroll)) {
     console.log("Tudo pronto! Todas as imagens foram carregadas. voltando para o topo..");
+    modulo.gerirPopup('subindo');
     elementoScroll.scrollTo({
       top: 0,
       behavior: 'smooth'
     });
 
+    setTimeout(() => modulo.gerirPopup('fechar'), 2000);
   } else console.error("Falha ao percorrer o mangá.");
 
   //TENHO QUE APLIMORAR ISSO PRA IR ROLANDO ATE A ACABAR AS IMGS
