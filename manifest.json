@@ -6,8 +6,12 @@
   "permissions": [
     "storage", 
     "unlimitedStorage",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
+  "action": {
+    "default_popup": "interfaceExtensao.html"
+  },
   "host_permissions": [
     "https://*/*",
     "http://*/*"

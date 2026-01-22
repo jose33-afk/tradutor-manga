@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 220px; /* Largura padrão de menus de extensão */
+      background: #121212;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 15px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 10px;
+    }
+    h3 { margin: 0; font-size: 16px; color: #10b981; }
+    .status-text {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 15px;
+      line-height: 1.4;
+    }
+    #btnLigar {
+      width: 100%;
+      padding: 12px;
+      background: #10b981;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #btnLigar:hover {
+      background: #059669;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h3>Manga Loader</h3>
+  </div>
+  <div class="status-text">
+    Clique para recarregar a página e iniciar a detecção automática de imagens.
+  </div>
+  <button id="btnLigar">LIGAR E ATUALIZAR</button>
+
+  <script src="auxiliarInterface.js"></script>
+</body>
+</html>

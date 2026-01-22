@@ -44,31 +44,53 @@ async function findMangaPages() {
  };
 };
 
+// --- Funcao inicial --- 
 const esperar = ms => new Promise(res => setTimeout(res, ms));//delay
 
 window.addEventListener('load', async () => {
+  const data = await chrome.storage.local.get('ligado');
+  if(data.ligado) {
+    await chrome.storage.local.set({ ligado: false });
+    executarCarregamentoCompleto();
+  };
+});
+
+async function executarCarregamentoCompleto() {
   const caminhoDaFunc = chrome.runtime.getURL('popDescida.js');
   const modulo = await import(caminhoDaFunc);
 
   let elementoScroll = await encrontrarElementoDeScroll();
-  if (elementoScroll) modulo.gerirPopup('abrir');
 
-  await esperar(600);
+  if (elementoScroll) {
+    modulo.gerirPopup('abrir');
+    await esperar(600);
 
-  if(await carregarPaginaManga(elementoScroll)) {
-    console.log("Tudo pronto! Todas as imagens foram carregadas. voltando para o topo..");
-    modulo.gerirPopup('subindo');
-    elementoScroll.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
+    const sucesso = await carregarPaginaManga(elementoScroll);
 
-    setTimeout(() => modulo.gerirPopup('fechar'), 2000);
-  } else console.error("Falha ao percorrer o mangá.");
+    if(sucesso) {
+      console.log("Tudo pronto! Todas as imagens foram carregadas. voltando para o topo..");
+      modulo.gerirPopup('subindo');
 
-  //TENHO QUE APLIMORAR ISSO PRA IR ROLANDO ATE A ACABAR AS IMGS
-  //setTimeout(() => findMangaPages(), 5000); //delay para garantir que as imgs via js carregaram.
-});
+      elementoScroll.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+
+      setTimeout(() => {
+        modulo.gerirPopup('fechar')//
+        chrome.storage.local.set({ estaCorrendo: false }); //Eu vou ter que mover isso pro final
+      }, 2000);
+
+    } else {
+      console.error("Falha ao percorrer o mangá.");
+      modulo.gerirPopup('fechar');
+      chrome.storage.local.set({ estaCorrendo: false });
+    };
+
+    //TENHO QUE APLIMORAR ISSO PRA IR ROLANDO ATE A ACABAR AS IMGS
+    //setTimeout(() => findMangaPages(), 5000); //delay para garantir que as imgs via js carregaram.
+  }
+};
 
 // --- Funcoes para rologem ate o final da pagina ---
 async function scrollSeguro(element) {
