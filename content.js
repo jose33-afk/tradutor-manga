@@ -47,12 +47,14 @@ async function findMangaPages() {
 // --- Funcao inicial --- 
 const esperar = ms => new Promise(res => setTimeout(res, ms));//delay
 
+async function verificaSeContinua() {
+  const { estaCorrendo } = await chrome.storage.local.get('estaCorrendo');
+  return estaCorrendo === true;
+};
+
+// E necessario por causa do F5.
 window.addEventListener('load', async () => {
-  const data = await chrome.storage.local.get('ligado');
-  if(data.ligado) {
-    await chrome.storage.local.set({ ligado: false });
-    executarCarregamentoCompleto();
-  };
+  if(await verificaSeContinua()) executarCarregamentoCompleto();
 });
 
 async function executarCarregamentoCompleto() {
@@ -121,6 +123,11 @@ function carregarPaginaManga(scroller) {
 
     // --- MODO 1: Dinamico (Manga plus / Sites que crescem) ---
     while (tentativasSemMudanca < LIMITE_TENTATIVAS) {
+      if (!await verificaSeContinua()) {
+        console.log("🛑 Interrupção manual: Parando o scroll.");
+        return resolve(false);
+      };
+
       await scrollSeguro(scroller);
       await esperar(500)
       end = chegouAoFim(scroller);
@@ -136,7 +143,7 @@ function carregarPaginaManga(scroller) {
     };
     
     if (end) return resolve(true);
-    else return resolve(false)
+    else return resolve(false);
   });
 }; 
 
@@ -185,7 +192,3 @@ function encrontrarElementoDeScroll() {
   1 - Client e altura da tela, scroll e o tamanho do conteudo do elemento mesmo se estiver oculto.
   2 - scrollTop e a distancia que eu to do top da tela. eu somo a distanc
 */
-
-
-
-

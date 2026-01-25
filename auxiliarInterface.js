@@ -1,11 +1,35 @@
-document.getElementById('btnLigar').addEventListener('click', async () => {
-  await chrome.storage.local.set({
-    ligado: true,
-    estaCorrendo: true
-  });
+const bnt = document.querySelector('#btnLigar');
 
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    chrome.tabs.reload(tabs[0].id);
-    window.close();
-  });
+// modifica o estado do bnt conforme o estado da variavel estaCorrendo.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.estaCorrendo) {
+    const novoValor = changes.estaCorrendo.newValue;
+    
+    bnt.innerText = novoValor ? "PARAR CARREGAMENTO" : "LIGAR E ATUALIZAR";
+    bnt.style.background = novoValor ? "#ef4444" : "#22c55e";
+  };
 });
+
+bnt.addEventListener('click', async () => {
+  const { estaCorrendo } = await chrome.storage.local.get('estaCorrendo');//2
+  
+  if (estaCorrendo) {
+    //Se ja esta rodando, apenas desliga a variavel(o content.js vai perceber).
+    await chrome.storage.local.set({ estaCorrendo: false });
+    window.close();
+  } else {
+    await chrome.storage.local.set({ estaCorrendo: true });
+    const [abaAtiva] = await chrome.tabs.query({ active: true, currentWindow: true });//3 
+    chrome.tabs.reload(abaAtiva.id);
+  };
+
+});
+
+
+/*
+  1 - tipo um eventLisner. -- o get sempre entrega em formato de {}.
+  2 - assim pega o valor e precisa ser igual, se quiser mudar o nome e assim {estaCorrendo:nomenovo}
+  3 - primeiro ele retorna uma array por padrao. Segundo e uma pesquisa nas abas do navegador active:true e a aba que esta destacada
+      na barra la em cima no navegador.
+      currentWindow e o local onde esse script esta sendo executado.
+*/
