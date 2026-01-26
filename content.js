@@ -70,7 +70,6 @@ async function executarCarregamentoCompleto() {
     const sucesso = await carregarPaginaManga(elementoScroll);
 
     if(sucesso) {
-      console.log("Tudo pronto! Todas as imagens foram carregadas. voltando para o topo..");
       modulo.gerirPopup('subindo');
 
       elementoScroll.scrollTo({
@@ -79,19 +78,14 @@ async function executarCarregamentoCompleto() {
       });
 
       setTimeout(() => {
-        modulo.gerirPopup('fechar')//
-        chrome.storage.local.set({ estaCorrendo: false }); //Eu vou ter que mover isso pro final
+        modulo.gerirPopup('fechar');
+        findMangaPages();
       }, 2000);
 
     } else {
-      console.error("Falha ao percorrer o mangá.");
-      modulo.gerirPopup('fechar');
-      chrome.storage.local.set({ estaCorrendo: false });
+      modulo.gerirPopup('erro', 'Falha ao percorrer o mangá.');
     };
-
-    //TENHO QUE APLIMORAR ISSO PRA IR ROLANDO ATE A ACABAR AS IMGS
-    //setTimeout(() => findMangaPages(), 5000); //delay para garantir que as imgs via js carregaram.
-  }
+  };
 };
 
 // --- Funcoes para rologem ate o final da pagina ---

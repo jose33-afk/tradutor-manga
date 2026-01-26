@@ -1,6 +1,10 @@
 const estiloPopup = `
+  .status-erro {
+    background: rgba(239, 68, 68, 0.9) !important; 
+    border: 1px solid #ef4444;
+  }
   .status-sucesso {
-    background: rgba(16, 185, 129, 0.9) !important; /* Um verde esmeralda elegante */
+    background: rgba(16, 185, 129, 0.9) !important; 
     border: 1px solid #10b981;
   }
 
@@ -42,10 +46,21 @@ const estiloPopup = `
   }
 `;
 
+const fecharComDelay = (popup, delay, encerrarPrograma = false) => {
+  setTimeout(() => {
+    popup.style.opacity = '0';
+    popup.style.transform = 'translateY(20px)';
 
-export function gerirPopup(acao) {
+    setTimeout(() => {
+      popup.remove();
+      if(encerrarPrograma) chrome.storage.local.set({ estaCorrendo: false });
+    }, 500);
+  }, delay);
+};
+
+export function gerirPopup(acao, msCustom) {
   let popup = document.getElementById('tradutor-manga-extensao-loader-popup');
-
+  
   if (acao === 'abrir') {
     if (!popup) {
       const styleSheet = document.createElement('style'); //tag style so entende txt.
@@ -81,12 +96,18 @@ export function gerirPopup(acao) {
       popup.classList.add('status-sucesso');
       popup.querySelector('.mensagem-status').innerText = 'Carregamento completo!';
 
-      setTimeout(() => {
-        popup.style.opacity = '0';
-        popup.style.transform = 'translateY(20px)';
-
-        setTimeout(() => popup.remove(), 500);
-      }, 1500); //1.5 segundos.
+      fecharComDelay(popup, 1500); //1.5 segundos. 
     };
+  };
+
+  // ESTADO de erro.
+  if (acao === 'erro') {
+    const seta = popup.querySelector('.seta-animada');
+    seta.innerHTML = '⚠';
+    seta.classList.remove('animacao-subindo');
+    popup.classList.add('status-erro');
+
+    popup.querySelector('.mensagem-status').innerText = msCustom || 'Erro inesperado!';
+    fecharComDelay(popup, 2500, true);
   };
 };
