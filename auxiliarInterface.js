@@ -1,12 +1,22 @@
 const bnt = document.querySelector('#btnLigar');
 
 // modifica o estado do bnt conforme o estado da variavel estaCorrendo.
+function configurarBotao(estado) {
+  bnt.innerText = estado ? "PARAR CARREGAMENTO" : "LIGAR E ATUALIZAR";
+  bnt.style.background = estado ? "#ef4444" : "#22c55e";
+};
+
+// Assim que abrir(interface extensao) ele consulta o storage.
+(async () => {
+  const { estaCorrendo } = await chrome.storage.local.get('estaCorrendo');
+  configurarBotao(estaCorrendo);
+})();
+
+// Para mudar o estado do bnt permanentemente.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.estaCorrendo) {
     const novoValor = changes.estaCorrendo.newValue;
-    
-    bnt.innerText = novoValor ? "PARAR CARREGAMENTO" : "LIGAR E ATUALIZAR";
-    bnt.style.background = novoValor ? "#ef4444" : "#22c55e";
+    configurarBotao(novoValor);
   };
 });
 

@@ -1,36 +1,23 @@
 async function findMangaPages() {
   const images = Array.from(document.querySelectorAll('img'));
-  console.log(images)
+ 
   //Para Evitar de pegar icones, logotipos ou banners.
   const imgsFiltradas = images
     .filter((img) => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450)
     .map(img => img);
 
-
   if (imgsFiltradas.length > 0) {
     console.log(`Encontradas ${imgsFiltradas.length} possiveis paginas.`);
 
-    const caminhoDoFiltro = chrome.runtime.getURL('filtro.js');
-    const modulo = await import(caminhoDoFiltro);
+    const caminho = chrome.runtime.getURL('filtro.js');
+    const modulo = await import(caminho);
     
     //O promise.all serve para ele esperar todas as promises serem prontas.
-    let imgPosfiltro = await Promise.all(imgsFiltradas.map((element) => modulo.filtroImg(element, element.src)));
+    let imgPosfiltro = await Promise.all(imgsFiltradas.map((element, i) => modulo.filtroImg(element, element.src, i + 1)));
     console.log(imgPosfiltro)
     // const falhou = imgPosfiltro.includes(undefined);
     //Fazer a pagina rolar ate em baixo e quando carregar voltar pro topo.
 
-    // if (falhou) {
-    //   console.log('Ocorreu um erro ao pegar as imagens, seguindo para o canvas... ', imgPosfiltro);
-    //   imgPosfiltro.length = 0;
-    //   imgPosfiltro = await Promise.all(images.map(element => capturarImgemDaTela(element, element.src)));
-    //   console.log(imgPosfiltro)
-    // };
-
-    //console.log(imgPosfiltro)
-
-  
-
-    //Vou ter que fazer try com fech se der erro eu rodo o canvas.
 
     // console.log(imgPosfiltro)
     // chrome.runtime.sendMessage({
@@ -39,7 +26,7 @@ async function findMangaPages() {
     //     site: window.location.hostname,
     //     titulo: document.title,
     //   },
-    //   data: urls
+    //   data: urls //imgs em blob
     // });
  };
 };
@@ -77,11 +64,10 @@ async function executarCarregamentoCompleto() {
         behavior: 'smooth'
       });
 
-      setTimeout(() => {
-        modulo.gerirPopup('fechar');
-        findMangaPages();
-      }, 2000);
-
+      esperar(2000);
+      modulo.gerirPopup('fechar');
+      findMangaPages();
+    
     } else {
       modulo.gerirPopup('erro', 'Falha ao percorrer o mangá.');
     };
@@ -108,76 +94,72 @@ function chegouAoFim(s) {
   return atual + visivel >= total - 100;
 };
 
-function carregarPaginaManga(scroller) {
-  return new Promise(async (resolve) => {
-    let alturaAnterior = 0;
-    let tentativasSemMudanca = 0;
-    let end = false;
-    const LIMITE_TENTATIVAS = 3;
+async function carregarPaginaManga(scroller) {
+  let alturaAnterior = 0;
+  let tentativasSemMudanca = 0;
+  let end = false;
+  const LIMITE_TENTATIVAS = 3;
 
-    // --- MODO 1: Dinamico (Manga plus / Sites que crescem) ---
-    while (tentativasSemMudanca < LIMITE_TENTATIVAS) {
-      if (!await verificaSeContinua()) {
-        console.log("🛑 Interrupção manual: Parando o scroll.");
-        return resolve(false);
-      };
-
-      await scrollSeguro(scroller);
-      await esperar(500)
-      end = chegouAoFim(scroller);
-
-      if (end) {
-        let alturaAtual = scroller.scrollHeight || document.documentElement.scrollHeight;
-
-        if (alturaAtual > alturaAnterior) {
-          alturaAnterior = alturaAtual;
-          tentativasSemMudanca = 0;
-        } else tentativasSemMudanca++;
-      };
+  // --- MODO 1: Dinamico (Manga plus / Sites que crescem) ---
+  while (tentativasSemMudanca < LIMITE_TENTATIVAS) {
+    if (!await verificaSeContinua()) {
+      console.log("🛑 Interrupção manual: Parando o scroll.");
+      return false;
     };
-    
-    if (end) return resolve(true);
-    else return resolve(false);
-  });
+
+    await scrollSeguro(scroller);
+    await esperar(500);
+
+    end = chegouAoFim(scroller);
+
+    if (end) {
+      let alturaAtual = scroller.scrollHeight || document.documentElement.scrollHeight;
+
+      if (alturaAtual > alturaAnterior) {
+        alturaAnterior = alturaAtual;
+        tentativasSemMudanca = 0;
+      } else tentativasSemMudanca++;
+    };
+  };
+  
+  return end;
 }; 
 
 // -- Encontrar Elmento responsavel pelo scroll da pagina --
-function encrontrarElementoDeScroll() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const html = document.documentElement; 
-      const body = document.body; //para funcionar em qualquer navegador.
+async function encrontrarElementoDeScroll() {
+  await esperar(2000);
 
-      // Função auxiliar para checar se o CSS permite scroll.
-      const podeRolar = (element) => {
-        const style = window.getComputedStyle(element);
-        return style.overflowY !== 'hidden' && style.overflowY !== 'clip';
+  const html = document.documentElement; 
+  const body = document.body; //para funcionar em qualquer navegador.
+
+  // Função auxiliar para checar se o CSS permite scroll.
+  const podeRolar = (element) => {
+    const style = window.getComputedStyle(element);
+    return style.overflowY !== 'hidden' && style.overflowY !== 'clip';
+  };
+
+  if (html.scrollHeight > html.clientHeight && podeRolar(html)) return html;
+  if (body.scrollHeight > body.clientHeight && podeRolar(body)) return body;
+
+  const imagens = Array.from(document.querySelectorAll('img')).slice(0, 15)
+        .filter((img) => img.offsetWidth > 300 && img.offsetHeight > img.offsetWidth); 
+
+  for (let i = 0; i < imagens.length; i++) {
+    let alvo = imagens[i].parentElement;
+
+    while (alvo !== null && alvo !== html && alvo !== body) {
+      if (alvo.scrollHeight > alvo.clientHeight && podeRolar(alvo)) {
+        const quantidadeInterna = alvo.querySelectorAll('img').length;
+
+        if (quantidadeInterna >= 2) return alvo;
       };
+    
+      alvo = alvo.parentElement;
+    };
 
-      if (html.scrollHeight > html.clientHeight && podeRolar(html)) return resolve(html);
-      else if (body.scrollHeight > body.clientHeight && podeRolar(body)) return resolve(body);
-
-      const imagens = Array.from(document.querySelectorAll('img')).slice(0, 15)
-            .filter((img) => img.offsetWidth > 300 && img.offsetHeight > img.offsetWidth); 
-
-      for (let i = 0; i < imagens.length; i++) {
-        let alvo = imagens[i].parentElement;
-
-        while (alvo !== null && alvo !== html && alvo !== body) {
-          if (alvo.scrollHeight > alvo.clientHeight && podeRolar(alvo)) {
-            const quantidadeInterna = alvo.querySelectorAll('img').length;
-
-            if (quantidadeInterna >= 2) return resolve(alvo);
-          };
-        
-          alvo = alvo.parentElement;
-        };
-
-        console.log("Nenhum container específico achado, usando Window.");
-        resolve(window);
-      };
-    }, 2000);
-  });
+    console.log("Nenhum container específico achado, usando Window.");
+    return window;
+  };
 };
 
 

@@ -40,20 +40,17 @@ async function processarImagens(urls) {
           console.log(`A pagina ja esta no cache (ID: ${consulta.result.id})`);
         } else {
           console.log("Imagem nova detectada. Baixando..."); 
-          
-          //let imgPosFiltro = await filtroImg(url)
-          console.log(url)
+        
+        
 
           //
-          // if (imagemBlob.size < 30000) { //mínimo 30KB para evitar ícones/anúncios
-          //   console.log('Imagem com tamanho menor que 30kb ignorando...   :', url);
-          //   return;
-          // }; 
-
+      
+          
           // const acesso = db.transaction(["paginas"], "readwrite");
           // const gavetaGravacao = acesso.objectStore("paginas");
           
-          //e eu n vou par a img e sim a traducao e a referencia continua sendo a ulr 
+          //Gravar so depois de traduzir. e e melhor salvar so o text traduzido
+          //a url e a chave.
           // const pedindoPut = gavetaGravacao.put({
           //   url,
           //   dados: imagemBlob,
@@ -62,8 +59,7 @@ async function processarImagens(urls) {
           
           // pedindoPut.onsuccess = () => {
 
-          //   if (urlLimpa.endsWith('.webp')) console.log('url web', urlLimpa); //manda para fucao que converte para jpg
-
+        
           //   //filaDeTraducao.push(url);
           //   //processarProximoDaFila(); //desativada para testes.
           // };

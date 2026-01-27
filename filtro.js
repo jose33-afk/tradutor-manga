@@ -1,22 +1,21 @@
-export async function filtroImg(element, url) { //sim n da para usar import mas precisa do export
-  let response;
+export async function filtroImg(element, url, index) { //sim n da para usar import mas precisa do export
+  let dataBlob;
 
-  try {
-    response = await fetch(url);
-  } catch (e) {
-    response = await capturarImgemDaTela(element, url);
-    
-    if(!response.sucesso) return;
-    response = response.blob;
+  // Tenta o fetch; se der falha (CORS ou erro de rede), cai no canvas.
+  dataBlob = await tentarFetch(url); 
+
+  if (!dataBlob) {
+    let response = await capturarImgemDaTela(element, url);
+
+    if (!response.sucesso) {
+      return { index, erro: response.erro };
+    };
+
+    dataBlob = response.blob;
   };
 
   try {
-    let dataBlob;
-
-    if (response instanceof Blob) dataBlob = response;
-    else dataBlob = await response.blob();
-
-    console.log(dataBlob)
+    // ANTES DE TUDO VAMOS CRIAR UM ARQUIVO HTML PRA TESTAR NO MANGA PLUS. O MANGA DEX N TA PEGANDO  TODAS AS IMG 
     if (dataBlob instanceof Blob) {
       // 1. Cria a URL temporária para o navegador conseguir ler o binário
       const urlTemporaria = URL.createObjectURL(dataBlob);
@@ -39,52 +38,60 @@ export async function filtroImg(element, url) { //sim n da para usar import mas 
 
       console.log("Visualização da página adicionada ao final do site.");
     }
+    
+    if (!dataBlob || dataBlob.size === 0) return { index, erro: "Blob vazio!" };
 
-    // if (dataBlob.size === 0 || !dataBlob.type.includes('image')) {
-    //   console.log('Arquivo ignorado: Nao e uma imagem valida ou esta vazio.', dataBlob, 'url:', url);
-    //   return;
-    // };
 
-    // const ExtensaoImg = dataBlob.type.split('/')[1]; //Eu separo em duas e depois pego a segunda.
-    // const extensoesSuportadas = ['jpg', 'jpeg', 'png', 'webp'];
-    // let ehSuportada;
+    const ExtensaoImg = dataBlob.type.split('/')[1]; //Eu separo em duas e depois pego a segunda.
+    const extensoesSuportadas = ['jpg', 'jpeg', 'png', 'webp']; //por enquanto a api para extracao de texto n tem webp.
 
-    // ehSuportada = extensoesSuportadas.some(ext => ExtensaoImg === ext); //O some e ao contrario.
+    let ehSuportada = extensoesSuportadas.includes(ExtensaoImg);
+    
+    if (!ehSuportada) return { index, erro: "Imagem não suportada" };
 
-    // if (!ehSuportada) {
-    //   console.log(`Nao podemos proseguir com a img:${url} url nao suportada: ${ExtensaoImg}`);
-    //   return;
-    // };
-
-    // return { blob: dataBlob, url };
+    
+    console.log(ExtensaoImg)
+    return { index, blob: dataBlob, url };
   } catch(e) {
-    console.error('Erro ao buscar os dados do blob:', e);
     return;
   };
 };
 
-function capturarImgemDaTela(imgElement, url) {
-  return new Promise((resolve, reject) => {
-    if (!imgElement.complete || imgElement.naturalWidth === 0) {
-      resolve(new Error("A imagem ainda nao foi carregada ou esta quebrada"));
-      return;
-    }
+async function tentarFetch(entrada) {
+  if (entrada instanceof Blob) return entrada; // Se ja for um Blob, nao faz nada.
 
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = imgElement.naturalWidth;
-      canvas.height = imgElement.naturalHeight;
+  // Se for uma URL.
+  try {
+    const response = await fetch(entrada);
+    if (!response.ok) return null;
+    return response instanceof Blob ? response : await response.blob();
 
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(imgElement, 0, 0);
+  } catch (e) {
+    return null;
+  };
+};
 
-      canvas.toBlob((blobGerado) => {
-        if (blobGerado) resolve( { blob: blobGerado, url, sucesso:true} );
-        else resolve({ sucesso: false });
-      });
-    } catch (e){
-      console.warn('Erro ao converter uma imagem específica:', e);
-      resolve({ blob: imgElement, url, sucesso:false });
-    };
-  });
+async function capturarImgemDaTela(imgElement, url) {
+  if (!imgElement.complete || imgElement.naturalWidth === 0) {
+    return { sucesso: false, erro: "Imagem quebrada" };
+  };
+  
+  try {
+    imgElement.crossOrigin = "anonymous";
+
+    const canvas = document.createElement('canvas');
+    canvas.width = imgElement.naturalWidth;
+    canvas.height = imgElement.naturalHeight;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imgElement, 0, 0);
+
+    const blobGerado = await new Promise(resolve => canvas.toBlob(resolve));
+
+    if(!blobGerado) return { url, sucesso: false, erro: "Falha ao gerar blob" };
+
+    return { blob: blobGerado, url, sucesso: true };
+  } catch (e){
+    return { url, sucesso: false, erro: e.message};
+  };
 };
