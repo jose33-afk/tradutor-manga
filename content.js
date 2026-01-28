@@ -13,8 +13,36 @@ async function findMangaPages() {
     const modulo = await import(caminho);
     
     //O promise.all serve para ele esperar todas as promises serem prontas.
-    let imgPosfiltro = await Promise.all(imgsFiltradas.map((element, i) => modulo.filtroImg(element, element.src, i + 1)));
-    console.log(imgPosfiltro)
+    imgPosfiltro = [];
+    const estadoFetch = { erros: 0 };
+
+    const processarLote = async (lote, comecaEm, estado) => {
+      return await Promise.all(lote.map((element, i) => 
+        modulo.filtroImg(element, element.src, i + comecaEm, estado))
+      );
+    };
+    
+    if (imgsFiltradas.length > 4) {
+      const iniciais = await processarLote(imgsFiltradas.slice(0, 4), 1, estadoFetch);
+      const restante = await processarLote(imgsFiltradas.slice(4), 5, estadoFetch);
+
+      imgPosfiltro = [...iniciais, ...restante];
+    } else {
+      console.log('Menos de 4 imagens!')
+      // Caso tenha 4 ou menos, processa tudo direto.
+      imgPosfiltro = await processarLote(imgsFiltradas, 1, estadoFetch);
+    };
+
+    // NOTA DE PERFORMANCE:
+    // Se a extensão apresentar lentidão ou travar a aba, devemos processar o restante 
+    // das imagens em lotes (batches) menores, em vez de disparar todas simultaneamente 
+    // após a verificação do limite de erros.
+
+
+    console.log(imgPosfiltro);
+    
+    //let imgPosfiltro = await Promise.all(imgsFiltradas.map((element, i) => modulo.filtroImg(element, element.src, i + 1, estadoFetch)));
+    //console.log(imgPosfiltro)
     // const falhou = imgPosfiltro.includes(undefined);
     //Fazer a pagina rolar ate em baixo e quando carregar voltar pro topo.
 

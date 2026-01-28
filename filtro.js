@@ -1,16 +1,17 @@
-export async function filtroImg(element, url, index) { //sim n da para usar import mas precisa do export
+export async function filtroImg(element, url, index, estado) { //sim n da para usar import mas precisa do export
+  const LIMITE_ERROS = 4;
   let dataBlob;
-
+  console.log('Erros', estado.erros)
   // Tenta o fetch; se der falha (CORS ou erro de rede), cai no canvas.
-  dataBlob = await tentarFetch(url); 
+  if (estado.erros < LIMITE_ERROS) dataBlob = await tentarFetch(url, estado, LIMITE_ERROS); 
 
   if (!dataBlob) {
     let response = await capturarImgemDaTela(element, url);
 
     if (!response.sucesso) {
-      return { index, erro: response.erro };
+      return { index, erro: response.erro }; //O index e para saber quais imagens falharam.
     };
-
+    console.log('passou por aqui')
     dataBlob = response.blob;
   };
 
@@ -57,16 +58,28 @@ export async function filtroImg(element, url, index) { //sim n da para usar impo
   };
 };
 
-async function tentarFetch(entrada) {
+async function tentarFetch(entrada, estado, limite) {
   if (entrada instanceof Blob) return entrada; // Se ja for um Blob, nao faz nada.
+  if(estado.erros >= limite) return null;
 
+  console.log('Erros dentro', estado.erros)
   // Se for uma URL.
   try {
     const response = await fetch(entrada);
-    if (!response.ok) return null;
-    return response instanceof Blob ? response : await response.blob();
 
+    if (!response.ok) {
+      console.log('response erro')
+      estado.erros++;
+      console.log('erros apos response falhar', estado.erros)
+      return null
+    };
+
+    estado.erros = 0;
+    return response instanceof Blob ? response : await response.blob();
   } catch (e) {
+    console.log('no catch')
+    estado.erros++;
+    console.log('no catch erros', estado.erros)
     return null;
   };
 };
@@ -77,8 +90,6 @@ async function capturarImgemDaTela(imgElement, url) {
   };
   
   try {
-    imgElement.crossOrigin = "anonymous";
-
     const canvas = document.createElement('canvas');
     canvas.width = imgElement.naturalWidth;
     canvas.height = imgElement.naturalHeight;
