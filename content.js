@@ -28,7 +28,6 @@ async function findMangaPages() {
 
       imgPosfiltro = [...iniciais, ...restante];
     } else {
-      console.log('Menos de 4 imagens!')
       // Caso tenha 4 ou menos, processa tudo direto.
       imgPosfiltro = await processarLote(imgsFiltradas, 1, estadoFetch);
     };
