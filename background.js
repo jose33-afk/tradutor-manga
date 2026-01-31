@@ -1,92 +1,49 @@
-importScripts('config.js', 'ocr_service.js');
-const requestDB = indexedDB.open('MangaCache', 1); //abre um arquivo no HD do usuario.
-let db; //Para outras funcoes.
-let filaDeTraducao = [];
-let processandoFila = false;
-
-//Se a gaveta nunca existiu (primeira vez que usa), o Chrome cria o "formato" dela
-requestDB.onupgradeneeded = (event) => {
-  const dbConfig = event.target.result;
-  if (!dbConfig.objectStoreNames.contains("paginas")) {
-    // Criamos a gaveta e já grudamos o índice nela na mesma sequência
-    dbConfig.createObjectStore("paginas", { keyPath: "id", autoIncrement: true })
-            .createIndex("urlIndex", "url", { unique: true });
-  };
-};
-
-requestDB.onsuccess = (event) => {
-  db = event.target.result;
-  console.log("Banco pronto!");
-};
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "PROCESSAR_CAPITOLO") {
-    console.log('Iniciando processamento...');
-    processarImagens(request.data); //Funcao assincrona para n travar o navegador.
-  };
+  if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request);
 });
 
-async function processarImagens(urls) {
-  for (let url of urls) {
-    try {
-      //Ler e verificar se existe.
-      const acesso = db.transaction(["paginas"], "readwrite"); //["nome da gaveta"] | readwrite == nivel de acesso
-      const gaveta = acesso.objectStore("paginas"); //Aqui eu entro de fato, antes estava pedindo permissao.
-      const indice = gaveta.index('urlIndex'); //catalogo de urls
-      const consulta = indice.get(url); 
+const Banco = {
+  async conectar() {
+    return new Promise((resolve, reject) => {
+      const pedido = indexedDB.open("MangaCache", 3);
 
-      consulta.onsuccess = async () => {
-        if(consulta.result) {
-          console.log(`A pagina ja esta no cache (ID: ${consulta.result.id})`);
-        } else {
-          console.log("Imagem nova detectada. Baixando..."); 
-        
-        
+      // Se for a primeira vez, ele cria as "gavetas".
+      pedido.onupgradeneeded = (e) => {
+        const linkDB = e.target.result; // link pra configurar.
 
-          //
-      
-          
-          // const acesso = db.transaction(["paginas"], "readwrite");
-          // const gavetaGravacao = acesso.objectStore("paginas");
-          
-          //Gravar so depois de traduzir. e e melhor salvar so o text traduzido
-          //a url e a chave.
-          // const pedindoPut = gavetaGravacao.put({
-          //   url,
-          //   dados: imagemBlob,
-          //   data: new Date()
-          // });
-          
-          // pedindoPut.onsuccess = () => {
-
-        
-          //   //filaDeTraducao.push(url);
-          //   //processarProximoDaFila(); //desativada para testes.
-          // };
+        // objectStoreNames.contains() retorna true ou false.
+        if (!linkDB.objectStoreNames.contains("mangaplus.shueisha.co.jp")) { // Gaveta exclusiva MangaPlus.
+          linkDB.createObjectStore("mangaplus.shueisha.co.jp", { keyPath: "capituloUrl" });
         };
+
+        if (!linkDB.objectStoreNames.contains("mangadex.org")) { // Gaveta exclusiva MangaDex.
+          linkDB.createObjectStore("mangadex.org", { keyPath: "capituloUrl" });
+        };
+
+        if (!linkDB.objectStoreNames.contains("outros_sites")) { // Gaveta sites menores.
+          linkDB.createObjectStore("outros_sites", { keyPath: "capituloUrl" });
+        }
       };
-    } catch (error) {
-      console.error('Erro ao baixar a imgem da URL:', url, error);
-    };
-  };
-};
 
-async function processarProximoDaFila() {
-  if(processandoFila || filaDeTraducao.length === 0) return;
+      pedido.onsuccess = () => {
+        console.log("Conectado ao banco...");
+        resolve(pedido.result)
+      }; // link permanente.
 
-  processandoFila = true;
-  const urlAtual = filaDeTraducao.shift();
-  
-  try {
-    console.log(`[FILA] Processando OCR agora: ${urlAtual}`);
-    const textoGringo = await extrairText(urlAtual, db);
-    console.log(`[FILA] Texto extraido na URL ${urlAtual}:`, textoGringo);
+      pedido.onerror = (e) => {
+        console.error("Erro fatal ao abrir o banco:", e.target.error);
+        reject("Não consegui abrir o armário de mangás!");
+      };
+    });
+  },
+}
 
-  } catch (e) {
-    console.log(`[FILA] Falhou na URL ${urlAtual}:`, e);
-  } finally {
-    processandoFila = false;
-    processarProximoDaFila(); //proximo da lista se houver.
-  };
+async function gerenciarProcessamento(request) {
+  const { site, capituloUrl } = request.dadosExtras;
+  const listaImagens = request.data;
+  const db = await Banco.conectar(); //testes
+  console.log(db);
+  console.log("Gavetas encontradas:", db.objectStoreNames);// testes
 
+ 
 };

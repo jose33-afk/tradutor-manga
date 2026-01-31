@@ -32,29 +32,24 @@ async function findMangaPages() {
       imgPosfiltro = await processarLote(imgsFiltradas, 1, estadoFetch);
     };
 
+    console.log(imgPosfiltro); // Para verificacao de bugs.
+
     // NOTA DE PERFORMANCE:
     // Se a extensão apresentar lentidão ou travar a aba, devemos processar o restante 
     // das imagens em lotes (batches) menores, em vez de disparar todas simultaneamente 
     // após a verificação do limite de erros.
 
-
-    console.log(imgPosfiltro);
-    
-    //let imgPosfiltro = await Promise.all(imgsFiltradas.map((element, i) => modulo.filtroImg(element, element.src, i + 1, estadoFetch)));
-    //console.log(imgPosfiltro)
-    // const falhou = imgPosfiltro.includes(undefined);
-    //Fazer a pagina rolar ate em baixo e quando carregar voltar pro topo.
-
-
-    // console.log(imgPosfiltro)
-    // chrome.runtime.sendMessage({
-    //   action: "PROCESSAR_CAPITOLO",
-    //   dadosExtras: {
-    //     site: window.location.hostname,
-    //     titulo: document.title,
-    //   },
-    //   data: urls //imgs em blob
-    // });
+    const capituloUrl = window.location.href;
+    const site = new URL(capituloUrl).hostname;
+ 
+    chrome.runtime.sendMessage({
+      action: "PROCESSAR_CAPITOLO",
+      dadosExtras: {
+        capituloUrl,
+        site,
+      },  
+      data: imgPosfiltro
+    });
  };
 };
 
@@ -68,7 +63,11 @@ async function verificaSeContinua() {
 
 // E necessario por causa do F5.
 window.addEventListener('load', async () => {
-  if(await verificaSeContinua()) executarCarregamentoCompleto();
+  //testes
+  esperar(1000)
+  findMangaPages()
+  //testes
+  //if(await verificaSeContinua()) executarCarregamentoCompleto();
 });
 
 async function executarCarregamentoCompleto() {

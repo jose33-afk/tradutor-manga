@@ -1,9 +1,9 @@
-export async function filtroImg(element, url, index, estado) { //sim n da para usar import mas precisa do export
+export async function filtroImg(element, url, index, estado) { // O IMPORT normal nao funciona, mas o EXPORT e necessario.
   const LIMITE_ERROS = 4;
   let dataBlob;
  
   // Tenta o fetch; se der falha (CORS ou erro de rede), cai no canvas.
-  if (estado.erros < LIMITE_ERROS) dataBlob = await tentarFetch(url, estado, LIMITE_ERROS); 
+  if (estado.erros < LIMITE_ERROS) dataBlob = await tentarFetch(url, estado); 
 
   if (!dataBlob) {
     let response = await capturarImgemDaTela(element, url);
