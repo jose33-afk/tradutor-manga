@@ -12,17 +12,12 @@ const Banco = {
         const linkDB = e.target.result; // link pra configurar.
 
         // objectStoreNames.contains() retorna true ou false.
-        if (!linkDB.objectStoreNames.contains("mangaplus.shueisha.co.jp")) { // Gaveta exclusiva MangaPlus.
-          linkDB.createObjectStore("mangaplus.shueisha.co.jp", { keyPath: "capituloUrl" });
-        };
-
-        if (!linkDB.objectStoreNames.contains("mangadex.org")) { // Gaveta exclusiva MangaDex.
-          linkDB.createObjectStore("mangadex.org", { keyPath: "capituloUrl" });
-        };
-
-        if (!linkDB.objectStoreNames.contains("outros_sites")) { // Gaveta sites menores.
-          linkDB.createObjectStore("outros_sites", { keyPath: "capituloUrl" });
-        }
+        const sites = ["mangaplus.shueisha.co.jp", "mangadex.org", "outros_sites"];
+        sites.forEach(site => {
+          if (!linkDB.objectStoreNames.contains(site)) { 
+            linkDB.createObjectStore(site, { keyPath: "capituloUrl" });
+          };
+        });
       };
 
       pedido.onsuccess = () => {
