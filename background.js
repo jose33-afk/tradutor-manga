@@ -98,6 +98,15 @@ async function gerenciarProcessamento(request) {
     //por enquanto no futuro dentro dessa por um obj dentro assim;
     // { texto: jskjdsds, cordenadas:y67.. } meramente ilustrativo.
     if (capituloSalvo) return capituloSalvo.paginas; 
+
+    // AGUARDANDO A PARTE DO OCR...
+    // const capituloParaSalvar = {
+    //   capituloUrl: capituloUrl,
+    //   paginas: imagensBrutas, 
+    //   data: new Date().toISOString()
+    // };
+
+    // await Banco.salvar(site, capituloParaSalvar);
   } catch (e) {
     console.error("ERRO no fluxo do banco:", e);
     return null;
