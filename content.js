@@ -32,6 +32,7 @@ async function findMangaPages() {
       imgPosfiltro = await processarLote(imgsFiltradas, 1, estadoFetch);
     };
 
+    // !!!FALTOU FILTRAR AS IMAGEM QUE DERAM ERRO!!!
     console.log(imgPosfiltro); // Para verificacao de bugs.
 
     // NOTA DE PERFORMANCE:
@@ -64,10 +65,10 @@ async function verificaSeContinua() {
 // E necessario por causa do F5.
 window.addEventListener('load', async () => {
   //testes
-  esperar(1000)
-  findMangaPages()
+  // esperar(1000)
+  // findMangaPages()
   //testes
-  //if(await verificaSeContinua()) executarCarregamentoCompleto();
+  if(await verificaSeContinua()) executarCarregamentoCompleto();
 });
 
 async function executarCarregamentoCompleto() {
