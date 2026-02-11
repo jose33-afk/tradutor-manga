@@ -24,7 +24,7 @@ export async function filtroImg(element, url, index, estado) { // O IMPORT norma
     
     if (!ehSuportada) return { index, erro: "Imagem não suportada" };
 
-    return { index, blob: dataBlob, url };
+    return { index, buffer: bufferFinal, type: dataBlob.type };
   } catch(e) {
     return { index, erro: e.message };
   };

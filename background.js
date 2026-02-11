@@ -1,3 +1,5 @@
+import { testeAzure } from "./ocr_service.js";
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request);
 });
@@ -88,29 +90,37 @@ const Banco = {
   },
 };
 
+let limite = true; //teste
+
 async function gerenciarProcessamento(request) {
   const { site, capituloUrl } = request.dadosExtras;
   const listaImagens = request.data; //Imgs so pra teste no final eu vou salvar o text e as cordenadas pro popup.
   
-  try {
-    const capituloSalvo = await Banco.buscar(site, capituloUrl);
+  console.log(listaImagens)
+  // try {
+  //   const capituloSalvo = await Banco.buscar(site, capituloUrl);
 
-    //por enquanto no futuro dentro dessa por um obj dentro assim;
-    // { texto: jskjdsds, cordenadas:y67.. } meramente ilustrativo.
-    if (capituloSalvo) return capituloSalvo.paginas; 
+  //   //por enquanto no futuro dentro dessa por um obj dentro assim;
+  //   // { texto: jskjdsds, cordenadas:y67.. } meramente ilustrativo.
+  //   //if (capituloSalvo) return capituloSalvo.paginas; DESATIVADO: Para testes do OCR.
 
-    // AGUARDANDO A PARTE DO OCR...
-    // const capituloParaSalvar = {
-    //   capituloUrl: capituloUrl,
-    //   paginas: imagensBrutas, 
-    //   data: new Date().toISOString()
-    // };
+  //   if (limite) {
+  //     testeAzure(listaImagens[1]);
+  //     limite = false
+  //   }
+    
+  //   // AGUARDANDO A PARTE DO OCR...
+  //   // const capituloParaSalvar = {
+  //   //   capituloUrl: capituloUrl,
+  //   //   paginas: imagensBrutas, 
+  //   //   data: new Date().toISOString()
+  //   // };
 
-    // await Banco.salvar(site, capituloParaSalvar);
-  } catch (e) {
-    console.error("ERRO no fluxo do banco:", e);
-    return null;
-  };
+  //   // await Banco.salvar(site, capituloParaSalvar);
+  // } catch (e) {
+  //   console.error("ERRO no fluxo do banco:", e);
+  //   return null;
+  // };
 };
 
 
