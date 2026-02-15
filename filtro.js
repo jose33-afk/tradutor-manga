@@ -1,33 +1,15 @@
-export async function filtroImg(element, url, index, estado) { // O IMPORT normal nao funciona, mas o EXPORT e necessario.
+export async function filtroImg(element, url, index, estado) { // 1.1 
   const LIMITE_ERROS = 4;
   let dataBlob;
- 
-  // Tenta o fetch; se der falha (CORS ou erro de rede), cai no canvas.
-  if (estado.erros < LIMITE_ERROS) dataBlob = await tentarFetch(url, estado); 
+  
+  if (estado.erros < LIMITE_ERROS) dataBlob = await tentarFetch(url, estado); // 1.2
 
   if (!dataBlob) {
-    let response = await capturarImgemDaTela(element, url);
-
-    if (!response.sucesso) {
-      return { index, erro: response.erro }; //O index e para saber quais imagens falharam.
-    };
-    dataBlob = response.blob;
+    let response = await ImageService.capturarImgemDaTela(element);
+    if (!response) return null; // 1.3
+    dataBlob = response;
   } else {
-    // Tenta comprimir. Se a função de comprimir falhar, mantém o original.
-
-    // 1. Guarda o tamanho original para comparar depois
-    const tamanhoOriginal = dataBlob.size;
-    console.log(`%c[Original] ${(tamanhoOriginal / 1024).toFixed(2)} KB`, "color: orange; font-weight: bold;");
-
-    dataBlob = (await ImageService.comprimirBlob(dataBlob)) || dataBlob;
-
-    // 3. Calcula a economia
-    const tamanhoFinal = dataBlob.size;
-    const economia = (((tamanhoOriginal - tamanhoFinal) / tamanhoOriginal) * 100).toFixed(1);
-
-    // 4. Mostra o resultado final com cor
-    console.log(`%c[Comprimido] ${(tamanhoFinal / 1024).toFixed(2)} KB`, "color: #00ff00; font-weight: bold;");
-    console.log(`%c[Economia] Reduziu ${economia}% do tamanho original`, "background: #222; color: #bada55; padding: 2px 5px;");
+    dataBlob = (await ImageService.comprimirBlob(dataBlob)) || dataBlob; // 1.4
   };
 
   //Preciso refatorar 
@@ -55,42 +37,17 @@ async function tentarFetch(entrada, estado) {
   if (entrada instanceof Blob) return entrada; // Se ja for um Blob, nao faz nada.
 
   try {
-    const response = await fetch(entrada);
-
-    if (!response.ok) {
-      estado.erros++;
-      return null
-    };
-
+    const res = await fetch(entrada);
+    if (!res.ok) throw new Error();
+    
     estado.erros = 0;
-    return await response.blob();
-
+    return await res.blob();
   } catch (e) {
     estado.erros++;
     return null;
   };
 };
 
-  //Preciso refatorar - Colocar dentro de ImageService.
-async function capturarImgemDaTela(imgElement, url) {
-  if (!imgElement.complete || imgElement.naturalWidth === 0) {
-    return { sucesso: false, erro: "Imagem quebrada" };
-  };
-  
-  try {
-    //Usar a funcao ultilitaria dps
-    const canvas = ImageService.criarCanvasDaimg(imgElement);
-
-    const blobGerado = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-
-    if(!blobGerado) return { url, sucesso: false, erro: "Falha ao gerar blob" };
-
-    return { blob: blobGerado, url, sucesso: true };
-  } catch (e){
-    return { url, sucesso: false, erro: e.message};
-  };
-};
- //Preciso refatorar 
 
 const ImageService = {
   criarCanvasDaimg(img) {
@@ -130,9 +87,25 @@ const ImageService = {
       img.src = URL.createObjectURL(input); // Cria um link pros dados do blob.
     });
   },
+
+  async capturarImgemDaTela(imgElement) {
+    if (!imgElement.complete || imgElement.naturalWidth === 0) return null;
+    try {
+      const canvas = this.criarCanvasDaimg(imgElement);
+      const blobGerado = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9)); 
+      return blobGerado || null;
+    } catch (e) {
+      return null;
+    };
+  },
 };
 
 /*
+  1.1 - O IMPORT normal nao funciona, mas o EXPORT e necessario.
+  1.2 - Tenta o fetch; se der falha (CORS ou erro de rede), cai no canvas.
+  1.3 - index e para saber quais imagens falharam.
+  1.4 - Tenta comprimir. Se a função de comprimir falhar, mantém o original.
+
   1 - Espera a imagem carregar na memoria RAM, tira um "print" dela no canvas, depois transforma em um blob comprimido 
       e só depois apaga o link temporário depois que o novo arquivo estiver pronto.
 */
