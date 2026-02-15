@@ -40,17 +40,18 @@ async function findMangaPages() {
     // das imagens em lotes (batches) menores, em vez de disparar todas simultaneamente 
     // após a verificação do limite de erros.
 
-    const capituloUrl = window.location.href;
-    const site = new URL(capituloUrl).hostname;
+    
+    // const capituloUrl = window.location.href;
+    // const site = new URL(capituloUrl).hostname;
  
-    chrome.runtime.sendMessage({
-      action: "PROCESSAR_CAPITOLO",
-      dadosExtras: {
-        capituloUrl,
-        site,
-      },  
-      data: imgPosfiltro
-    });
+    // chrome.runtime.sendMessage({
+    //   action: "PROCESSAR_CAPITOLO",
+    //   dadosExtras: {
+    //     capituloUrl,
+    //     site,
+    //   },  
+    //   data: imgPosfiltro
+    // });
  };
 };
 
