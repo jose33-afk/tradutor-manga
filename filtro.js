@@ -12,29 +12,22 @@ export async function filtroImg(element, url, index, estado) { // 1.1
     dataBlob = (await ImageService.comprimirBlob(dataBlob)) || dataBlob; // 1.4
   };
 
-  //Preciso refatorar 
   try {
-    if (!dataBlob || dataBlob.size === 0) return { index, erro: "Blob vazio!" };
+    const EXTENSOES_PERMITIDAS = ['image/jpg', 'image/jpeg', 'image/png'];
 
-    const ExtensaoImg = dataBlob.type.split('/')[1]; //Eu separo em duas e depois pego a segunda.
-    const extensoesSuportadas = ['jpg', 'jpeg', 'png',]; //por enquanto a api para extracao de texto n tem webp.
+    if(!dataBlob?.size) return { index, erro: "Blob vazio!" };
+    if (!EXTENSOES_PERMITIDAS.includes(dataBlob.type)) return { index, erro: "Imagem não suportada" };
 
-    let ehSuportada = extensoesSuportadas.includes(ExtensaoImg);
-    
-    if (!ehSuportada) return { index, erro: "Imagem não suportada" };
+    const imageDataUrl = await ImageService.blobToBase64(dataBlob);
 
-    const buffer = await dataBlob.arrayBuffer(); //Lembrando que depois de transformar nisso eu tenho que transformar em base64
-
-    return { index, buffer, type: dataBlob.type };
+    return { index, imageDataUrl, type: dataBlob.type };
   } catch(e) {
     return { index, erro: e.message };
   };
-  //Preciso refatorar 
 };
 
-// FETCH
 async function tentarFetch(entrada, estado) {
-  if (entrada instanceof Blob) return entrada; // Se ja for um Blob, nao faz nada.
+  if (entrada instanceof Blob) return entrada; // 1.5
 
   try {
     const res = await fetch(entrada);
@@ -65,11 +58,11 @@ const ImageService = {
     return new Promise((resolv) => {
       const img = new Image();
 
-      img.onload = () => { // So executa quando a img carregar na memoria.
+      img.onload = () => { // 1.6
         try {
           const canvas = this.criarCanvasDaimg(img);
-          canvas.toBlob((blob) => { //1
-            URL.revokeObjectURL(img.src); // Limpa da memoria RAM.
+          canvas.toBlob((blob) => { // 1
+            URL.revokeObjectURL(img.src); // 1.7
             resolv(blob || false);
           }, 'image/jpeg', 0.9);
 
@@ -84,7 +77,7 @@ const ImageService = {
         resolv(false);
       };
 
-      img.src = URL.createObjectURL(input); // Cria um link pros dados do blob.
+      img.src = URL.createObjectURL(input); // 1.8
     });
   },
 
@@ -98,6 +91,15 @@ const ImageService = {
       return null;
     };
   },
+
+  async blobToBase64(blob) {
+    return new Promise((resolv) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolv(reader.result);
+      reader.onerror = () => resolv(null);
+      reader.readAsDataURL(blob);
+    });
+  },
 };
 
 /*
@@ -105,6 +107,10 @@ const ImageService = {
   1.2 - Tenta o fetch; se der falha (CORS ou erro de rede), cai no canvas.
   1.3 - index e para saber quais imagens falharam.
   1.4 - Tenta comprimir. Se a função de comprimir falhar, mantém o original.
+  1.5 - Se ja for um Blob, nao faz nada.
+  1.6 - So executa quando a img carregar na memoria.
+  1.7 - Limpa da memoria RAM.
+  1.8 Cria um link pros dados do blob.
 
   1 - Espera a imagem carregar na memoria RAM, tira um "print" dela no canvas, depois transforma em um blob comprimido 
       e só depois apaga o link temporário depois que o novo arquivo estiver pronto.
