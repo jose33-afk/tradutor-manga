@@ -96,19 +96,18 @@ async function gerenciarProcessamento(request) {
   const { site, capituloUrl } = request.dadosExtras;
   const listaImagens = request.data; //Imgs so pra teste no final eu vou salvar o text e as cordenadas pro popup.
   
-  console.log(listaImagens)
   // try {
-  //   const capituloSalvo = await Banco.buscar(site, capituloUrl);
+    const capituloSalvo = await Banco.buscar(site, capituloUrl);
 
-  //   //por enquanto no futuro dentro dessa por um obj dentro assim;
-  //   // { texto: jskjdsds, cordenadas:y67.. } meramente ilustrativo.
-  //   //if (capituloSalvo) return capituloSalvo.paginas; DESATIVADO: Para testes do OCR.
+    //por enquanto no futuro dentro dessa por um obj dentro assim;
+    // { texto: jskjdsds, cordenadas:y67.. } meramente ilustrativo.
+    //if (capituloSalvo) return capituloSalvo.paginas; DESATIVADO: Para testes do OCR.
 
-  //   if (limite) {
-  //     testeAzure(listaImagens[1]);
-  //     limite = false
-  //   }
-    
+    if (limite) {
+      testeAzure(listaImagens[2]);
+      limite = false
+    }
+   
   //   // AGUARDANDO A PARTE DO OCR...
   //   // const capituloParaSalvar = {
   //   //   capituloUrl: capituloUrl,

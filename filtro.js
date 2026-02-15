@@ -41,7 +41,6 @@ async function tentarFetch(entrada, estado) {
   };
 };
 
-
 const ImageService = {
   criarCanvasDaimg(img) {
     const canvas = document.createElement('canvas');

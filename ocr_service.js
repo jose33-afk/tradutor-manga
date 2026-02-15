@@ -1,9 +1,10 @@
 import { azureConfig } from "./config.js";
 
-export async function testeAzure(blob) {
+export async function testeAzure(objetoImagem) {
   // A URL para o OCR de leitura (Read API)
-  console.log("Tipo do Blob:", blob.type)
-  console.log(blob)
+  const res = await fetch(objetoImagem.imageDataUrl);
+  const blob = await res.blob();
+
   const url = `${azureConfig.endpoit}vision/v3.2/read/analyze`;
 
   try {
@@ -52,7 +53,7 @@ async function vigiarLink(link) {
         if (data.status === 'succeeded'){
           return {
             sucesso: true,
-            texto: dados.analyzeResult?.readResults?.[0]?.lines || []
+            texto: data.analyzeResult?.readResults?.[0]?.lines || []
           };
         };
         
@@ -64,7 +65,7 @@ async function vigiarLink(link) {
       };
 
       // Espera 1 segundo antes de verificar novamente
-      await new Promise(resolv => setTimeout(resolv, 1000));
+      await new Promise(resolv => setTimeout(resolv, 1500));
     } catch (e) {
       console.error("Erro de conexao durante a espera:", e.message);
     };

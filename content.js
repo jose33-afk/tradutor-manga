@@ -1,8 +1,7 @@
 async function findMangaPages() {
   const images = Array.from(document.querySelectorAll('img'));
  
-  //Para Evitar de pegar icones, logotipos ou banners.
-  const imgsFiltradas = images
+  const imgsFiltradas = images // 1.1
     .filter((img) => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450)
     .map(img => img);
 
@@ -12,12 +11,11 @@ async function findMangaPages() {
     const caminho = chrome.runtime.getURL('filtro.js');
     const modulo = await import(caminho);
     
-    //O promise.all serve para ele esperar todas as promises serem prontas.
-    imgPosfiltro = [];
+    imgPosfiltro = []; 
     const estadoFetch = { erros: 0 };
 
     const processarLote = async (lote, comecaEm, estado) => {
-      return await Promise.all(lote.map((element, i) => 
+      return await Promise.all(lote.map((element, i) => // 1.2
         modulo.filtroImg(element, element.src, i + comecaEm, estado))
       );
     };
@@ -28,12 +26,12 @@ async function findMangaPages() {
 
       imgPosfiltro = [...iniciais, ...restante];
     } else {
-      // Caso tenha 4 ou menos, processa tudo direto.
-      imgPosfiltro = await processarLote(imgsFiltradas, 1, estadoFetch);
+      imgPosfiltro = await processarLote(imgsFiltradas, 1, estadoFetch); // 1.3
     };
 
-    // !!!FALTOU FILTRAR AS IMAGEM QUE DERAM ERRO!!!
-    console.log(imgPosfiltro); // Para verificacao de bugs.
+    imgPosfiltro = imgPosfiltro.filter(item => item !== null);
+
+    console.log(imgPosfiltro); // !!!SOMENTE PARA TESTES, NAO VAI ENTRAR EM PRODUCAO!!!
 
     // NOTA DE PERFORMANCE:
     // Se a extensão apresentar lentidão ou travar a aba, devemos processar o restante 
@@ -41,19 +39,21 @@ async function findMangaPages() {
     // após a verificação do limite de erros.
 
     
-    // const capituloUrl = window.location.href;
-    // const site = new URL(capituloUrl).hostname;
+    const capituloUrl = window.location.href;
+    const site = new URL(capituloUrl).hostname;
  
-    // chrome.runtime.sendMessage({
-    //   action: "PROCESSAR_CAPITOLO",
-    //   dadosExtras: {
-    //     capituloUrl,
-    //     site,
-    //   },  
-    //   data: imgPosfiltro
-    // });
+    chrome.runtime.sendMessage({
+      action: "PROCESSAR_CAPITOLO",
+      dadosExtras: {
+        capituloUrl,
+        site,
+      },  
+      data: imgPosfiltro
+    });
  };
 };
+
+// depois vou separar esse arquivo em dois objetos para ficar mais organizado.
 
 // --- Funcao inicial --- 
 const esperar = ms => new Promise(res => setTimeout(res, ms));//delay
@@ -193,6 +193,10 @@ async function encrontrarElementoDeScroll() {
 
 
 /*
+  1.1 - Para Evitar de pegar icones, logotipos ou banners.
+  1.2 - O promise.all serve para ele esperar todas as promises serem prontas.
+  1.3 - Caso tenha 4 ou menos, processa tudo direto.
+
   1 - Client e altura da tela, scroll e o tamanho do conteudo do elemento mesmo se estiver oculto.
   2 - scrollTop e a distancia que eu to do top da tela. eu somo a distanc
 */
