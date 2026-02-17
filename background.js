@@ -97,7 +97,7 @@ async function gerenciarProcessamento(request, tabId) {
   const listaImagens = request.data; //Imgs so pra teste no final eu vou salvar o text e as cordenadas pro popup.
   
   // try {
-    const capituloSalvo = await Banco.buscar(site, capituloUrl);
+    //const capituloSalvo = await Banco.buscar(site, capituloUrl);
 
     //por enquanto no futuro dentro dessa por um obj dentro assim;
     // { texto: jskjdsds, cordenadas:y67.. } meramente ilustrativo.
@@ -106,7 +106,6 @@ async function gerenciarProcessamento(request, tabId) {
     if (limite) {
       limite = false
       const resultadodoAzure = await testeAzure(listaImagens[4]);
-      console.log(limite)
       console.log(resultadodoAzure)
 
       if (tabId) {

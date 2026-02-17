@@ -6,18 +6,19 @@ async function findMangaPages() {
     .map(img => {
       const rect = img.getBoundingClientRect();
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
 
       return { 
         elemento: img, 
         posicoes: {
-          topo: rect.top + scrollTop,    // Onde começa (Y)
-          base: rect.bottom + scrollTop, // Onde termina (Y)
-          esquerda: rect.left + scrollX, // Onde começa (X)
-          direita: rect.right + scrollX, // Onde termina (X)
-          largura: rect.width,
-          altura: rect.height,
+          topo: rect.top + scrollTop,
+          esquerda: rect.left + scrollLeft,
+          larguraTela: rect.width,    // Largura que vemos no site
+          alturaTela: rect.height,    // Altura que vemos no site
+          larguraReal: img.naturalWidth, // Largura real da foto (arquivo)
+          alturaReal: img.naturalHeight  // Altura real da foto (arquivo)
         }
-      }
+      };
     });
 
   if (imgsFiltradas.length > 0) {
@@ -70,54 +71,61 @@ async function findMangaPages() {
 
 
 // testes
-chrome.runtime.onMessage.addListener((request) => {
-  if (request.action === "DESENHAR_POPUP") {
-    console.log(request.data)
-    request.data.forEach(linha => {
-      const { boundingBox, text } = linha;
-      
-      // Pegamos o X e Y inicial (primeiros dois números do array)
-      const x = boundingBox[0];
-      const y = boundingBox[1];
-      // Largura simples (x_topo_direito - x_topo_esquerdo)
-      const largura = boundingBox[2] - boundingBox[0]; 
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log("Mensagem recebida no Content Script:", request);
 
-      criarOverlayTexto(text, x, y, largura);
+  if (request.action === "DESENHAR_POPUP") {
+    // Pegamos os dados exatamente como aparecem no seu log
+    const { azure, pocicoes } = request.data;
+
+    if (!azure || !pocicoes) {
+      console.error("Dados incompletos:", request.data);
+      return;
+    }
+
+    // Cálculo da escala
+    const ratioX = pocicoes.larguraTela / pocicoes.larguraReal;
+    const ratioY = pocicoes.alturaTela / pocicoes.alturaReal;
+
+    azure.forEach((linha, i) => {
+      const b = linha.boundingBox;
+      
+      // Cálculo de posição com offset e escala
+      const x = (b[0] * ratioX) + pocicoes.esquerda;
+      const y = (b[1] * ratioY) + pocicoes.topo;
+      const largura = (b[2] - b[0]) * ratioX;
+      const altura = (b[5] - b[1]) * ratioY;
+
+      const span = document.createElement('span');
+      span.innerText = linha.text;
+      
+      // Estilo ultra visível para teste
+      span.style.cssText = `
+        position: absolute !important;
+        left: ${x}px !important;
+        top: ${y}px !important;
+        width: ${largura}px !important;
+        height: ${altura}px !important;
+        background-color: rgba(255, 255, 0, 0.7) !important;
+        border: 2px solid magenta !important;
+        color: black !important;
+        font-size: ${Math.max(altura * 0.6, 10)}px !important;
+        z-index: 2147483647 !important;
+        pointer-events: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+      `;
+      
+      document.body.appendChild(span);
     });
+
+    console.log(`${azure.length} elementos desenhados.`);
+    sendResponse({ status: "OK" }); // Responde para o background
   }
 });
-
-function criarOverlayTexto(texto, x, y, largura) {
-  const span = document.createElement('span');
-  span.innerText = texto;
-  
-  span.style.cssText = `
-    position: absolute;
-    left: ${x}px;
-    top: ${y}px;
-    min-width: ${largura}px;
-    
-    /* Estilo Chamativo */
-    background-color: rgba(255, 255, 0, 0.9); /* Amarelo forte */
-    color: #000;
-    font-weight: bold;
-    font-family: 'Arial', sans-serif;
-    font-size: 14px;
-    line-height: 1.2;
-    padding: 2px 4px;
-    
-    /* Borda Neon */
-    border: 3px solid #ff00ff; /* Magenta Neon */
-    box-shadow: 0 0 10px #ff00ff, 0 0 5px #000;
-    
-    border-radius: 4px;
-    z-index: 2147483647; /* O máximo possível para ficar na frente de tudo */
-    pointer-events: none; 
-    white-space: nowrap;
-  `;
-  
-  document.body.appendChild(span);
-}
 // testes
 
 
