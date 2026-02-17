@@ -23,7 +23,7 @@ export async function testeAzure(objetoImagem) {
 
       const resultado = await vigiarLink(linkEspera, azureConfig.apiKey);
 
-      if (resultado.sucesso) console.log("Aqui está o seu texto:", resultado.texto);
+      if (resultado.sucesso) return resultado.texto;
       else {
         console.error("azure aceitou, mas houve um problema:", resultado.erro);
       };

@@ -1,7 +1,7 @@
 import { testeAzure } from "./ocr_service.js";
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request);
+  if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request, sender.tab.id);
 });
 
 const Banco = {
@@ -92,7 +92,7 @@ const Banco = {
 
 let limite = true; //teste
 
-async function gerenciarProcessamento(request) {
+async function gerenciarProcessamento(request, tabId) {
   const { site, capituloUrl } = request.dadosExtras;
   const listaImagens = request.data; //Imgs so pra teste no final eu vou salvar o text e as cordenadas pro popup.
   
@@ -104,8 +104,18 @@ async function gerenciarProcessamento(request) {
     //if (capituloSalvo) return capituloSalvo.paginas; DESATIVADO: Para testes do OCR.
 
     if (limite) {
-      testeAzure(listaImagens[2]);
       limite = false
+      const resultadodoAzure = await testeAzure(listaImagens[4]);
+      console.log(limite)
+      console.log(resultadodoAzure)
+
+      if (tabId) {
+        chrome.tabs.sendMessage(tabId, {
+          action: "DESENHAR_POPUP",
+          data: resultadodoAzure
+        });
+        console.log("Mensagem de volta enviada para a aba:", tabId);
+      }
     }
    
   //   // AGUARDANDO A PARTE DO OCR...

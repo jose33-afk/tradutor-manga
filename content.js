@@ -3,7 +3,22 @@ async function findMangaPages() {
  
   const imgsFiltradas = images // 1.1
     .filter((img) => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450)
-    .map(img => img);
+    .map(img => {
+      const rect = img.getBoundingClientRect();
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+      return { 
+        elemento: img, 
+        posicoes: {
+          topo: rect.top + scrollTop,    // Onde começa (Y)
+          base: rect.bottom + scrollTop, // Onde termina (Y)
+          esquerda: rect.left + scrollX, // Onde começa (X)
+          direita: rect.right + scrollX, // Onde termina (X)
+          largura: rect.width,
+          altura: rect.height,
+        }
+      }
+    });
 
   if (imgsFiltradas.length > 0) {
     console.log(`Encontradas ${imgsFiltradas.length} possiveis paginas.`);
@@ -15,8 +30,8 @@ async function findMangaPages() {
     const estadoFetch = { erros: 0 };
 
     const processarLote = async (lote, comecaEm, estado) => {
-      return await Promise.all(lote.map((element, i) => // 1.2
-        modulo.filtroImg(element, element.src, i + comecaEm, estado))
+      return await Promise.all(lote.map((item, i) => // 1.2
+        modulo.filtroImg(item.elemento, item.elemento.src, i + comecaEm, estado, item.posicoes))
       );
     };
     
@@ -52,6 +67,59 @@ async function findMangaPages() {
     });
  };
 };
+
+
+// testes
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === "DESENHAR_POPUP") {
+    console.log(request.data)
+    request.data.forEach(linha => {
+      const { boundingBox, text } = linha;
+      
+      // Pegamos o X e Y inicial (primeiros dois números do array)
+      const x = boundingBox[0];
+      const y = boundingBox[1];
+      // Largura simples (x_topo_direito - x_topo_esquerdo)
+      const largura = boundingBox[2] - boundingBox[0]; 
+
+      criarOverlayTexto(text, x, y, largura);
+    });
+  }
+});
+
+function criarOverlayTexto(texto, x, y, largura) {
+  const span = document.createElement('span');
+  span.innerText = texto;
+  
+  span.style.cssText = `
+    position: absolute;
+    left: ${x}px;
+    top: ${y}px;
+    min-width: ${largura}px;
+    
+    /* Estilo Chamativo */
+    background-color: rgba(255, 255, 0, 0.9); /* Amarelo forte */
+    color: #000;
+    font-weight: bold;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    line-height: 1.2;
+    padding: 2px 4px;
+    
+    /* Borda Neon */
+    border: 3px solid #ff00ff; /* Magenta Neon */
+    box-shadow: 0 0 10px #ff00ff, 0 0 5px #000;
+    
+    border-radius: 4px;
+    z-index: 2147483647; /* O máximo possível para ficar na frente de tudo */
+    pointer-events: none; 
+    white-space: nowrap;
+  `;
+  
+  document.body.appendChild(span);
+}
+// testes
+
 
 // depois vou separar esse arquivo em dois objetos para ficar mais organizado.
 

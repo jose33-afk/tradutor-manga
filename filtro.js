@@ -1,4 +1,4 @@
-export async function filtroImg(element, url, index, estado) { // 1.1 
+export async function filtroImg(element, url, index, estado, posicoes) { // 1.1 
   const LIMITE_ERROS = 4;
   let dataBlob;
   
@@ -20,7 +20,7 @@ export async function filtroImg(element, url, index, estado) { // 1.1
 
     const imageDataUrl = await ImageService.blobToBase64(dataBlob);
 
-    return { index, imageDataUrl, type: dataBlob.type };
+    return { index, imageDataUrl, type: dataBlob.type, posicoes };
   } catch(e) {
     return { index, erro: e.message };
   };
