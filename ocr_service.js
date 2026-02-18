@@ -86,21 +86,26 @@ const GeradorDeLotes = {
   PESO_MAX: 4 * 1024 * 1024, // 4MB
 
   _calcularPesoReal(base64String) {
-    const stringPura = base64String.split(',')[1] || base64String;
+    const stringPura = (base64String.split(',')[1] || base64String).trim(); // 1.4
     const padding = stringPura.endsWith('==') ? 2 : (stringPura.endsWith('=') ? 1 : 0);
-    console.log(stringPura)
-    console.log('padding:', padding)
+    return Math.floor((stringPura.length * 0.75) - padding);
   },
 
-  montarLotes(obj) {
+  montarLotes(listaImagens) {
     const lotes = [];
 
-    this._calcularPesoReal(obj[4].imageDataUrl)
-  }
-}
+    for (const img of listaImagens) {
+      const pesoImg = this._calcularPesoReal(img.imageDataUrl);
+      
+    };
+    
+  },
+};
+
 /*
   1.1 - erros 400, 401, 429, 500, etc.
   1.2 - Espera 1.5s segundo antes de verificar novamente
   1.3 - O catch vazio aqui é o que faz o "ignorar erros de rede"
         Se o fetch der erro, ele cai aqui, não faz nada e vai para o setTimeout
+  1.4 - O .trim() garante que o endsWith não falhe por causa de espaços invisíveis
 */
