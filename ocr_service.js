@@ -1,81 +1,106 @@
 import { azureConfig } from "./config.js";
 
-export async function testeAzure(objetoImagem) {
-  // A URL para o OCR de leitura (Read API)
-  const res = await fetch(objetoImagem.imageDataUrl);
-  const blob = await res.blob();
-
-  const url = `${azureConfig.endpoit}vision/v3.2/read/analyze`;
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Ocp-Apim-Subscription-Key': azureConfig.apiKey,
-        'Content-Type': 'application/octet-stream'
-      },
-      body: blob
-    });
-
-    if (response.status === 202) {
-      console.log('Sucesso! Imagem aceita. Consultando resultado...');
-      const linkEspera = response.headers.get('Operation-Location');
-
-      const resultado = await vigiarLink(linkEspera, azureConfig.apiKey);
-
-      if (resultado.sucesso) {
-        return {
-          index: objetoImagem.index,
-          pocicoes: objetoImagem.posicoes,
-          azure: resultado.texto, 
-        };
-      } else {
-        console.error("azure aceitou, mas houve um problema:", resultado.erro);
-      };
-
-    } else {
-      console.log("Erro na requisao:", response.status);
-    };
-
-  } catch(e) {
-    console.log("Erro na requisicao:", e);
-  };
+export async function gerenciarOCR(objetoImagem) {
+  GeradorDeLotes.montarLotes(objetoImagem);
 };
 
-async function vigiarLink(link) {
-  const tempoMaximoTentativa = 30000 // 30s de limite para imagens gigantes
-  const inicio = Date.now();
 
-  while ( Date.now() - inicio < tempoMaximoTentativa) {
+const Azure = {
+  //Sujeito a alteracao, talvez n seja necessario
+  async _obterBlob(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    return await res.blob();
+  },
+
+  async processarOCR (objetoImagem) {
+    const { imageDataUrl, index, posicoes } = objetoImagem;
+    const { endpoit, apiKey } = azureConfig;
+    const url = `${endpoit}vision/v3.2/read/analyze`;
+    
     try {
-      const response = await fetch(link, {
-        headers: { 'Ocp-Apim-Subscription-Key': azureConfig.apiKey }
+      const blob = await this._obterBlob(imageDataUrl);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': azureConfig.apiKey,
+          'Content-Type': 'application/octet-stream'
+        },
+        body: blob
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (!response.ok) throw new Error(`Status Azure: ${response.status}`); // 1.1 
 
-        if (data.status === 'succeeded'){
-          return {
-            sucesso: true,
-            texto: data.analyzeResult?.readResults?.[0]?.lines || []
+      const linkEspera = response.headers.get('Operation-Location');
+      if (!linkEspera) throw new Error('Header Operation-Location ausente'); 
+
+      const resultado = await this._vigiarLink(linkEspera, apiKey);
+      if (!resultado?.sucesso) throw new Error(resultado?.erro || 'Erro no polling');
+
+      return { index, posicoes, azure: resultado.texto };
+    } catch (e) {
+      console.error(`[Abortado] Erro em Azure.processarOCR: ${e.message}`);
+      return null;
+    };
+  },
+
+  async _vigiarLink(link, apiKey) {
+    const tempoMaximo = 30000 // 30s
+    const inicio = Date.now();
+
+    while (Date.now() - inicio < tempoMaximo) { 
+      try {
+        const response = await fetch(link, {
+          headers: { 'Ocp-Apim-Subscription-Key': apiKey }
+        });
+
+        if (response.ok) {
+          const { status, analyzeResult } = await response.json();
+
+          if (status === 'succeeded') {
+            const linhas = analyzeResult?.readResults?.[0]?.lines;
+
+            return linhas?.length
+              ? { sucesso: true, texto: linhas } 
+              : { sucesso: false, erro: "Imagem sem texto detectável" }
+          };
+
+          if (status === 'failed') {
+            return { sucesso: false, erro: "Azure falhou no processamento" };
           };
         };
-        
-        if (data.status === 'failed') {
-          return { sucesso: false, erro:"Azure falhou no processamento" };
-        };
-      } else {
-        console.warn(`Servidor respondeu com erro ${response.status}, tentando novamente...`);
+      } catch (e) {
+        // 1.3
       };
 
-      // Espera 1 segundo antes de verificar novamente
-      await new Promise(resolv => setTimeout(resolv, 1500));
-    } catch (e) {
-      console.error("Erro de conexao durante a espera:", e.message);
+      await new Promise(resolv => setTimeout(resolv, 1500)); // 1.2
     };
-  };
 
-  // Se sair do while, é porque o tempo estourou
-  return { sucesso: false, erro: "Tempo esgotado (Timeout de 30s)" };
+    return { sucesso: false, erro: "Tempo esgotado (Timeout 30s)" };
+  },
 };
+
+const GeradorDeLotes = {
+  ALTURA_MAX: 10000, // Pixeis
+  PESO_MAX: 4 * 1024 * 1024, // 4MB
+
+  _calcularPesoReal(base64String) {
+    const stringPura = base64String.split(',')[1] || base64String;
+    const padding = stringPura.endsWith('==') ? 2 : (stringPura.endsWith('=') ? 1 : 0);
+    console.log(stringPura)
+    console.log('padding:', padding)
+  },
+
+  montarLotes(obj) {
+    const lotes = [];
+
+    this._calcularPesoReal(obj[4].imageDataUrl)
+  }
+}
+/*
+  1.1 - erros 400, 401, 429, 500, etc.
+  1.2 - Espera 1.5s segundo antes de verificar novamente
+  1.3 - O catch vazio aqui é o que faz o "ignorar erros de rede"
+        Se o fetch der erro, ele cai aqui, não faz nada e vai para o setTimeout
+*/

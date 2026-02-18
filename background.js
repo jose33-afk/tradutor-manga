@@ -1,4 +1,4 @@
-import { testeAzure } from "./ocr_service.js";
+import { gerenciarOCR } from "./ocr_service.js";
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request, sender.tab.id);
@@ -105,16 +105,16 @@ async function gerenciarProcessamento(request, tabId) {
 
     if (limite) {
       limite = false
-      const resultadodoAzure = await testeAzure(listaImagens[4]);
-      console.log(resultadodoAzure)
-
-      if (tabId) {
-        chrome.tabs.sendMessage(tabId, {
-          action: "DESENHAR_POPUP",
-          data: resultadodoAzure
-        });
-        console.log("Mensagem de volta enviada para a aba:", tabId);
-      }
+      
+      const resultadodoAzure = await gerenciarOCR(listaImagens);
+      
+      // if (tabId) {
+      //   chrome.tabs.sendMessage(tabId, {
+      //     action: "DESENHAR_POPUP",
+      //     data: resultadodoAzure
+      //   });
+      //   console.log("Mensagem de volta enviada para a aba:", tabId);
+      // }
     }
    
   //   // AGUARDANDO A PARTE DO OCR...
