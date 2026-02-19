@@ -1,7 +1,8 @@
 import { azureConfig } from "./config.js";
 
 export async function gerenciarOCR(objetoImagem) {
-  GeradorDeLotes.montarLotes(objetoImagem);
+  const lotes = GeradorDeLotes.montarLotes(objetoImagem);
+  console.table(lotes)
 };
 
 
@@ -12,6 +13,7 @@ const Azure = {
     if (!res.ok) throw new Error(res.status);
     return await res.blob();
   },
+  //Sujeito a alteracao, talvez n seja necessario
 
   async processarOCR (objetoImagem) {
     const { imageDataUrl, index, posicoes } = objetoImagem;
@@ -87,18 +89,40 @@ const GeradorDeLotes = {
 
   _calcularPesoReal(base64String) {
     const stringPura = (base64String.split(',')[1] || base64String).trim(); // 1.4
-    const padding = stringPura.endsWith('==') ? 2 : (stringPura.endsWith('=') ? 1 : 0);
+    const sufixo = stringPura.slice(-2); // 1.7
+    const padding = sufixo.endsWith('==') ? 2 : (sufixo.endsWith('=') ? 1 : 0);
     return Math.floor((stringPura.length * 0.75) - padding);
   },
 
   montarLotes(listaImagens) {
     const lotes = [];
+    let loteAtual = { imagens: [], alturaTotal: 0, pesoTotal: 0 };
 
     for (const img of listaImagens) {
+      const { larguraReal, alturaReal } = img.posicoes;
+      if (!larguraReal || !alturaReal) continue;
+
       const pesoImg = this._calcularPesoReal(img.imageDataUrl);
-      
+      const estourouAltura = (loteAtual.alturaTotal + alturaReal) > this.ALTURA_MAX;
+      const estorouPeso = (loteAtual.pesoTotal + pesoImg) > this.PESO_MAX;
+  
+      if ((estourouAltura || estorouPeso) && loteAtual.imagens.length > 0) {
+        lotes.push(loteAtual);
+        loteAtual = { imagens: [], alturaTotal: 0, pesoTotal: 0 }; // 1.5
+      };
+
+      loteAtual.imagens.push({
+        ...img,
+        offsetY: loteAtual.alturaTotal,
+        pesoReal: pesoImg
+      });
+
+      loteAtual.alturaTotal += alturaReal;
+      loteAtual.pesoTotal += pesoImg;
     };
     
+    if (loteAtual.imagens.length > 0) lotes.push(loteAtual); // 1.6
+    return lotes;
   },
 };
 
@@ -108,4 +132,7 @@ const GeradorDeLotes = {
   1.3 - O catch vazio aqui é o que faz o "ignorar erros de rede"
         Se o fetch der erro, ele cai aqui, não faz nada e vai para o setTimeout
   1.4 - O .trim() garante que o endsWith não falhe por causa de espaços invisíveis
+  1.5 - limpa pro proximo lote.
+  1.6 - Caso sobre algum lote.
+  1.7 - desse modo nao precisa percorrer a string inteira duas vezes.
 */
