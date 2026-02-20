@@ -13,10 +13,10 @@ async function findMangaPages() {
         posicoes: {
           topo: rect.top + scrollTop,
           esquerda: rect.left + scrollLeft,
-          larguraTela: rect.width,    // Largura que vemos no site
-          alturaTela: rect.height,    // Altura que vemos no site
-          larguraReal: img.naturalWidth, // Largura real da foto (arquivo)
-          alturaReal: img.naturalHeight  // Altura real da foto (arquivo)
+          larguraTela: rect.width,    // 3 
+          alturaTela: rect.height,   
+          larguraReal: img.naturalWidth, 
+          alturaReal: img.naturalHeight 
         }
       };
     });
@@ -274,5 +274,10 @@ async function encrontrarElementoDeScroll() {
   1.3 - Caso tenha 4 ou menos, processa tudo direto.
 
   1 - Client e altura da tela, scroll e o tamanho do conteudo do elemento mesmo se estiver oculto.
-  2 - scrollTop e a distancia que eu to do top da tela. eu somo a distanc
+  2 - scrollTop e a distancia que eu to do top da tela. eu somo a distancia
+  3 - larguraTela: rect.width           Largura que vemos no site
+      alturaTela: rect.height,          Altura que vemos no site
+      larguraReal: img.naturalWidth,    Largura real da foto (arquivo)
+      alturaReal: img.naturalHeight     Altura real da foto (arquivo)
+        
 */

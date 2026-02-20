@@ -1,8 +1,11 @@
 import { azureConfig } from "./config.js";
 
 export async function gerenciarOCR(objetoImagem) {
-  const lotes = GeradorDeLotes.montarLotes(objetoImagem);
+  const listaLimpa = objetoImagem.filter(img => img.imageDataUrl && img.posicoes);
+  
+  const lotes = GeradorDeLotes.montarLotes(listaLimpa);
   console.table(lotes)
+  CosturarImages.gerarImagemUnica(lotes);
 };
 
 
@@ -21,7 +24,9 @@ const Azure = {
     const url = `${endpoit}vision/v3.2/read/analyze`;
     
     try {
+      //Sujeito a alteracao, talvez n seja necessario
       const blob = await this._obterBlob(imageDataUrl);
+      //Sujeito a alteracao, talvez n seja necessario
 
       const response = await fetch(url, {
         method: 'POST',
@@ -126,6 +131,35 @@ const GeradorDeLotes = {
   },
 };
 
+const CosturarImages = {
+  async _carregarImagem(url) {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      return await createImageBitmap(blob);
+    } catch(e) {
+      return null;
+    }
+  },
+
+  async _processarTodosLotes(todosLotes) {
+    for (const lote of todosLotes) {
+      lote.imagens = await Promise.all( // 2
+        lote.imagens.map(async (img) => {
+          const el = await this._carregarImagem(img.imageDataUrl);
+          return el ? { ...img, imageDataUrl: el } : null; // 1.9
+        })
+      )
+
+      console.log(lote.imagens)
+    }
+  },
+
+  async gerarImagemUnica(lotes) {
+    await this._processarTodosLotes(lotes);
+  },
+};
+
 /*
   1.1 - erros 400, 401, 429, 500, etc.
   1.2 - Espera 1.5s segundo antes de verificar novamente
@@ -135,4 +169,16 @@ const GeradorDeLotes = {
   1.5 - limpa pro proximo lote.
   1.6 - Caso sobre algum lote.
   1.7 - desse modo nao precisa percorrer a string inteira duas vezes.
+  1.8 - nao precisa do new aqui porque o metodo all e nativo do js, quando eu uso o new
+        eu estou criando uma nova instancia.
+  1.9 - Os obj do js nao aceitam valor duplicado, oque esta acontecendo ai e;
+        eu copiei o obj todo e ele ja contem um "imageDataUrl", como ele ja existe 
+        o js so substitui o valor pelo ultimo passado.
+
+        a brisa aqui e que o map e a funcao anonima sao duas entidades 
+        o map n entende await mais a funcao anonima sim. ele esta chamando duas
+        funcoes ao mesmo tempo, uma que seria meio que o gerenciador e a outra a 
+        funcao carregar. o map chama todas as funcoes anonimas e vaza, depois quem
+        espera o resultado e a funcao anonima que entende await.
+  2.1 - nao vai travar porque o proprio fetch ja tem um limite de 6 por vez o resto fica na fila.
 */
