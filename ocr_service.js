@@ -5,7 +5,9 @@ export async function gerenciarOCR(objetoImagem) {
   
   const lotes = GeradorDeLotes.montarLotes(listaLimpa);
   console.table(lotes)
-  CosturarImages.gerarImagemUnica(lotes);
+  const lotesPosProcessamento = await CosturarImages.gerarImagemUnica(lotes);
+  console.table(lotesPosProcessamento)
+  // FALTA TESTAR VISUALMENTE A IMG UNICA.
 };
 
 
@@ -149,14 +151,66 @@ const CosturarImages = {
           const el = await this._carregarImagem(img.imageDataUrl);
           return el ? { ...img, imageDataUrl: el } : null; // 1.9
         })
-      )
+      );
 
-      console.log(lote.imagens)
+      lote.imagens = lote.imagens.filter(img => img.imageDataUrl !== null);
+
+      let cursorY = 0; // 2.2
+      lote.imagens.forEach(img => {
+        img.offsetY = cursorY;
+        cursorY += img.imageDataUrl.height;
+      });
+
+      lote.alturaTotal = cursorY;
     }
+    return todosLotes
   },
 
   async gerarImagemUnica(lotes) {
-    await this._processarTodosLotes(lotes);
+    if (!lotes?.length) return null;
+    const LotesProcessados = await this._processarTodosLotes(lotes);
+    let idAtual = 0;
+
+    for (const lote of LotesProcessados) {
+      const larguraMax = Math.max(...lote.imagens.map(img => img.imageDataUrl.width)); // 2.3
+
+      const canvas = new OffscreenCanvas(larguraMax, lote.alturaTotal);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (const img of lote.imagens) {
+        ctx.drawImage(img.imageDataUrl, 0, img.offsetY);
+        img.imageDataUrl.close(); // Libera a RAM da gpu.
+      };
+
+      const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality:0.95 }); // 2.4
+
+      const loteAtualizado = {
+        id: idAtual++,
+        blob,
+        totalImagens: lote.imagens.length,
+        imagens: lote.imagens.map(img => ({
+          index: img.index,
+          offsetY: img.offsetY,
+          posicoes: {
+            topo: img.posicoes.topo,
+            esquerda: img.posicoes.esquerda,
+            larguraTela: img.posicoes.larguraTela,
+            alturaTela: img.posicoes.alturaTela,
+            larguraReal: img.posicoes.larguraReal,
+            alturaReal: img.posicoes.alturaReal
+          }
+        }))
+      };
+
+      for (const key in lote) delete lote[key]; // 2.6
+      Object.assign(lote, loteAtualizado);
+
+      canvas.width = 0;
+      canvas.height = 0;
+    };
+    return LotesProcessados;
   },
 };
 
@@ -181,4 +235,12 @@ const CosturarImages = {
         funcao carregar. o map chama todas as funcoes anonimas e vaza, depois quem
         espera o resultado e a funcao anonima que entende await.
   2.1 - nao vai travar porque o proprio fetch ja tem um limite de 6 por vez o resto fica na fila.
+  2.2 - Caso alguma img falhe recalcula a altura pro canvas nao ficar com buracos.
+  2.3 - map: O JS percorre o array de objetos e cria um array temporário só de números (ex: [800, 810, 800]).
+        ...: O JS "explode" esse array temporário em argumentos soltos.
+        Math.max: Pega esses argumentos e decide qual é o maior.
+  2.4 - tem que comprimiar de qualquer jeito o canvas n aceita sair sem compressao se n passar um valor 
+        o broser escolhe sozinho. 95 e para garantir que a perga de qualidade seja minima.
+  2.5 - assim da pra separar uma propriedade facil.
+  2.6 - eu apago os dados do obj original e depois preencho com o meu novo obj.
 */
