@@ -103,32 +103,46 @@ async function gerenciarProcessamento(request, tabId) {
     // { texto: jskjdsds, cordenadas:y67.. } meramente ilustrativo.
     //if (capituloSalvo) return capituloSalvo.paginas; DESATIVADO: Para testes do OCR.
 
+    //organizar e entender isso.
     if (limite) {
       limite = false
       
       const resultadodoAzure = await gerenciarOCR(listaImagens);
       
-      // if (tabId) {
-      //   chrome.tabs.sendMessage(tabId, {
-      //     action: "DESENHAR_POPUP",
-      //     data: resultadodoAzure
-      //   });
-      //   console.log("Mensagem de volta enviada para a aba:", tabId);
-      // }
-    }
-   
-  //   // AGUARDANDO A PARTE DO OCR...
-  //   // const capituloParaSalvar = {
-  //   //   capituloUrl: capituloUrl,
-  //   //   paginas: imagensBrutas, 
-  //   //   data: new Date().toISOString()
-  //   // };
+      // const dataUrl = JSON.stringify(resultadodoAzure); // Vamos passar via Storage ou URL
 
-  //   // await Banco.salvar(site, capituloParaSalvar);
-  // } catch (e) {
-  //   console.error("ERRO no fluxo do banco:", e);
-  //   return null;
-  // };
+      // // Abre a página de preview da extensão
+      // chrome.tabs.create({ url: 'preview.html' }, (tab) => {
+      //   // Espera a página carregar e envia os dados
+      //   setTimeout(() => {
+      //     chrome.tabs.sendMessage(tab.id, { action: "RENDER_PREVIEW", data: resultadodoAzure });
+      //   }, 1000);
+      // });
+      
+    }
+    //  //beta isso vai ficar no backgroud
+    //   _blobToBase64 (blob) {
+    //     return new Promise((resolve, reject) => {
+    //       const reader = new FileReader();
+    //       reader.onloadend = () => resolve(reader.result);
+    //       reader.onerror = reject;
+    //       reader.readAsDataURL(blob);
+    //     });
+    //   },
+  //beta
+    //modelo de base para upar pro DB dps. fazer ajustes finos.
+    // const capituloVirtual = {
+    // versao: "1.0",
+    // idCapitulo: "manga_xyz_cap_01", // Nome bonito para o ID
+    // timestamp: Date.now(),
+    // metadados: {
+    //     titulo: "Nome do Mangá",
+    //     numero: "01",
+    //     totalLotes: resultadodoAzure.length
+    // },
+    // // Aqui entra o seu Array(7) que você mandou
+    // lotes: resultadodoAzure 
+    //};
 };
 
 

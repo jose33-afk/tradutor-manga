@@ -4,12 +4,10 @@ export async function gerenciarOCR(objetoImagem) {
   const listaLimpa = objetoImagem.filter(img => img.imageDataUrl && img.posicoes);
   
   const lotes = GeradorDeLotes.montarLotes(listaLimpa);
-  console.table(lotes)
   const lotesPosProcessamento = await CosturarImages.gerarImagemUnica(lotes);
-  console.table(lotesPosProcessamento)
-  // FALTA TESTAR VISUALMENTE A IMG UNICA.
-};
+  console.log(lotesPosProcessamento)
 
+};
 
 const Azure = {
   //Sujeito a alteracao, talvez n seja necessario
@@ -206,13 +204,14 @@ const CosturarImages = {
 
       for (const key in lote) delete lote[key]; // 2.6
       Object.assign(lote, loteAtualizado);
-
+    
       canvas.width = 0;
       canvas.height = 0;
     };
     return LotesProcessados;
   },
 };
+
 
 /*
   1.1 - erros 400, 401, 429, 500, etc.

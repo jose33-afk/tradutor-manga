@@ -28,7 +28,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["filtro.js", "popDescida.js", "auxiliarInterface.js"],
+      "resources": ["filtro.js", "popDescida.js", "auxiliarInterface.js", "preview.html", "preview.js"],
       "matches": ["<all_urls>"]
     }
   ]

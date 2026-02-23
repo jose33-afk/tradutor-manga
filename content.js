@@ -70,65 +70,6 @@ async function findMangaPages() {
 };
 
 
-// testes
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log("Mensagem recebida no Content Script:", request);
-
-  if (request.action === "DESENHAR_POPUP") {
-    // Pegamos os dados exatamente como aparecem no seu log
-    const { azure, pocicoes } = request.data;
-
-    if (!azure || !pocicoes) {
-      console.error("Dados incompletos:", request.data);
-      return;
-    }
-
-    // Cálculo da escala
-    const ratioX = pocicoes.larguraTela / pocicoes.larguraReal;
-    const ratioY = pocicoes.alturaTela / pocicoes.alturaReal;
-
-    azure.forEach((linha, i) => {
-      const b = linha.boundingBox;
-      
-      // Cálculo de posição com offset e escala
-      const x = (b[0] * ratioX) + pocicoes.esquerda;
-      const y = (b[1] * ratioY) + pocicoes.topo;
-      const largura = (b[2] - b[0]) * ratioX;
-      const altura = (b[5] - b[1]) * ratioY;
-
-      const span = document.createElement('span');
-      span.innerText = linha.text;
-      
-      // Estilo ultra visível para teste
-      span.style.cssText = `
-        position: absolute !important;
-        left: ${x}px !important;
-        top: ${y}px !important;
-        width: ${largura}px !important;
-        height: ${altura}px !important;
-        background-color: rgba(255, 255, 0, 0.7) !important;
-        border: 2px solid magenta !important;
-        color: black !important;
-        font-size: ${Math.max(altura * 0.6, 10)}px !important;
-        z-index: 2147483647 !important;
-        pointer-events: none !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        overflow: hidden !important;
-        white-space: nowrap !important;
-      `;
-      
-      document.body.appendChild(span);
-    });
-
-    console.log(`${azure.length} elementos desenhados.`);
-    sendResponse({ status: "OK" }); // Responde para o background
-  }
-});
-// testes
-
-
 // depois vou separar esse arquivo em dois objetos para ficar mais organizado.
 
 // --- Funcao inicial --- 
