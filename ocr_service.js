@@ -6,49 +6,58 @@ export async function gerenciarOCR(objetoImagem) {
   const lotes = GeradorDeLotes.montarLotes(listaLimpa);
   const lotesPosProcessamento = await CosturarImages.gerarImagemUnica(lotes);
   console.log(lotesPosProcessamento)
+  const res = await Azure.processarOCR(lotesPosProcessamento[0])
+  console.log(res)
+};
+
+const GerenciadorAzure = {
+  MAX_SIMULTANEO: 2,
 
 };
 
 const Azure = {
-  //Sujeito a alteracao, talvez n seja necessario
-  async _obterBlob(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(res.status);
-    return await res.blob();
-  },
-  //Sujeito a alteracao, talvez n seja necessario
+  async processarOCR (lote) {
+    const MAX_TENTATIVAS = 3;
+    const { endpoint, apiKey } = azureConfig;
+    const url = `${endpoint}vision/v3.2/read/analyze`;
+   
+    for (let i = 0; i < MAX_TENTATIVAS; i++) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Ocp-Apim-Subscription-Key': azureConfig.apiKey,
+            'Content-Type': 'application/octet-stream'
+          },
+          body: lote.blob
+        });
 
-  async processarOCR (objetoImagem) {
-    const { imageDataUrl, index, posicoes } = objetoImagem;
-    const { endpoit, apiKey } = azureConfig;
-    const url = `${endpoit}vision/v3.2/read/analyze`;
-    
-    try {
-      //Sujeito a alteracao, talvez n seja necessario
-      const blob = await this._obterBlob(imageDataUrl);
-      //Sujeito a alteracao, talvez n seja necessario
+        if (response.ok) {
+          const linkEspera = response.headers.get('Operation-Location'); 
+          if (!linkEspera) throw new Error('Header Operation-Location ausente'); 
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Ocp-Apim-Subscription-Key': azureConfig.apiKey,
-          'Content-Type': 'application/octet-stream'
-        },
-        body: blob
-      });
+          const resultado = await this._vigiarLink(linkEspera, apiKey);
 
-      if (!response.ok) throw new Error(`Status Azure: ${response.status}`); // 1.1 
+          if (resultado?.sucesso) {
+            // mexer no retorno.
+            return resultado.texto // 2.9
+            // chamar funcao pra separar o texto.
+            //depois dar o return.
+          } else throw new Error(resultado?.erro || 'Erro no polling');
+        };
 
-      const linkEspera = response.headers.get('Operation-Location');
-      if (!linkEspera) throw new Error('Header Operation-Location ausente'); 
+        if (response.status === 429) { // 2.7
+          console.warn(`[Azure] Limite atingido (429). Aguardando 30 segundos...`); // 2.8 debug.
+          await new Promise(r => setTimeout(r, 30000)) // 30s
+          continue;
+        };
 
-      const resultado = await this._vigiarLink(linkEspera, apiKey);
-      if (!resultado?.sucesso) throw new Error(resultado?.erro || 'Erro no polling');
-
-      return { index, posicoes, azure: resultado.texto };
-    } catch (e) {
-      console.error(`[Abortado] Erro em Azure.processarOCR: ${e.message}`);
-      return null;
+        throw new Error(`Erro API: ${response.status}`); // 1.1 
+      } catch (e) {
+        console.error(`[Tentativa ${i + 1}] Erro: ${e.message}`);
+        if (i === MAX_TENTATIVAS -1) return null;
+        await new Promise(r => setTimeout(r, 1000)); //1s
+      };
     };
   },
 
@@ -242,4 +251,7 @@ const CosturarImages = {
         o broser escolhe sozinho. 95 e para garantir que a perga de qualidade seja minima.
   2.5 - assim da pra separar uma propriedade facil.
   2.6 - eu apago os dados do obj original e depois preencho com o meu novo obj.
+  2.7 - TRATAMENTO DE LIMITE DE REQUISIÇÕES (429)
+  2.8 - o chrome mata o background se ficar sem atividade por mais de 30s
+  2.9 - o retun aqui funciona como um break.
 */

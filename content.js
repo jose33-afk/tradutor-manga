@@ -68,6 +68,11 @@ async function findMangaPages() {
     });
  };
 };
+/*
+
+ATUALIZAR O ROLAR ATE O FINAL CASO CHEGUE ALGUMA VEZ NO FINAL DA PAGINA PELO USUARIO.
+
+*/
 
 
 // depois vou separar esse arquivo em dois objetos para ficar mais organizado.
