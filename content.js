@@ -90,13 +90,25 @@ async function verificaSeContinua() {
   }
 };
 
+
 // E necessario por causa do F5.
 window.addEventListener('load', async () => {
-  //testes
-  // esperar(1000)
-  // findMangaPages()
-  //testes
   if(await verificaSeContinua()) executarCarregamentoCompleto();
+});
+
+// O Rádio Comunicador: Fica ouvindo o banco de dados 24 horas por dia
+chrome.storage.onChanged.addListener((mudancas, area) => {
+  // Verifica se a mudança foi no storage local e se mexeram no 'estaCorrendo'
+  if (area === 'local' && mudancas.estaCorrendo) {
+    
+    // Pega o novo valor (true se ligou, false se desligou)
+    const ligadoAgora = mudancas.estaCorrendo.newValue;
+
+    if (ligadoAgora === true) {
+      console.log("🟢 Popup mandou LIGAR! Iniciando sem recarregar a página...");
+      executarCarregamentoCompleto();
+    } 
+  }
 });
 
 async function executarCarregamentoCompleto() {

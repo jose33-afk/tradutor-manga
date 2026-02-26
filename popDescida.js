@@ -53,7 +53,13 @@ const fecharComDelay = (popup, delay, encerrarPrograma = false) => {
 
     setTimeout(() => {
       popup.remove();
-      if(encerrarPrograma) chrome.storage.local.set({ estaCorrendo: false });
+      if(encerrarPrograma) {
+        try {
+          chrome.storage.local.set({ estaCorrendo: false });
+        } catch(e) {
+          console.warn("👻 Contexto invalidado ignorado: O popup fechou, mas a extensão já tinha sido reiniciada.");
+        }
+      };
     }, 500);
   }, delay);
 };

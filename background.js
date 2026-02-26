@@ -1,5 +1,50 @@
 import { gerenciarOCR } from "./ocr_service.js";
 
+const PosInstalacaoExtensao = {
+  variaveisBase: {
+    estaCorrendo: false,
+    idiomaOrigem: "en",
+    idiomaConfig: "pt",
+    ultimaUrl: null
+  },
+
+  async configurarPrimeiroUso() {
+    const bancoInteiro = await chrome.storage.local.get(null); // 1.1
+    if (Object.keys(bancoInteiro).length === 0) { //1.2
+      console.log("🌱 Primeira instalação! Criando variáveis essenciais...");
+      await chrome.storage.local.set(this.variaveisBase);
+    }
+  },
+}
+
+// ajeitar isso
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // O changeInfo.url só existe se a URL da aba realmente mudou
+  if (changeInfo.url) {
+    try {
+      // Puxa os dados do banco
+      const dados = await StorageManager.buscar(['estaCorrendo', 'ultimaUrl']);
+
+      // Se a extensão estiver LIGADA e a URL nova for diferente da salva...
+      if (dados.estaCorrendo && dados.ultimaUrl && tab.url !== dados.ultimaUrl) {
+        console.log("🛑 Mudança de URL detectada pelo Background! Desligando a extensão...");
+        
+        // Reseta o banco de dados para o padrão (Desliga tudo)
+        await StorageManager.salvar(StorageManager.variaveisBase);
+        
+        // BÔNUS: Se você quiser, pode injetar um aviso visual na tela ou só deixar desligar silenciosamente
+      }
+    } catch (erro) {
+      console.error("Erro no vigia do background:", erro);
+    }
+  }
+});
+// ajeitar isso
+
+chrome.runtime.onInstalled.addListener(() => {
+  PosInstalacaoExtensao.configurarPrimeiroUso();
+});
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request, sender.tab.id);
 });
@@ -148,5 +193,7 @@ async function gerenciarProcessamento(request, tabId) {
 
 
 /*
+  1.1 - get(null) = "Me traga TUDO que tem no banco" para verificar se as variaveis ja existem ou precisa cria-las.
+  1.2 - pega o seu objeto e extrai todas as chaves dele, transformando-as em um Array (uma lista). E como a gente sabe, Arrays possuem a propriedade .length!
   1 - qualquer altercao na estrutura do banco ou deletar gavetas; exije a mudanca do valor, ou apagar o cache (F12 em Application).
 */
