@@ -1,56 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <style>
+    * { box-sizing: border-box; }
     body {
-      width: 220px; /* Largura padrão de menus de extensão */
-      background: #121212;
-      color: #e0e0e0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 15px;
+      width: 240px;
+      background: #0f111a; /* Um pouco mais profundo que o anterior */
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0; padding: 16px;
     }
     .header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 15px;
-      border-bottom: 1px solid #333;
-      padding-bottom: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 15px; border-bottom: 1px solid #1e293b; padding-bottom: 10px;
     }
-    h3 { margin: 0; font-size: 16px; color: #10b981; }
+    h3 { margin: 0; font-size: 16px; color: #a78bfa; font-weight: 700; }
     .status-text {
-      font-size: 12px;
-      color: #999;
-      margin-bottom: 15px;
-      line-height: 1.4;
+      font-size: 11px; color: #94a3b8; margin-bottom: 16px; text-align: center;
     }
+    .form-group { margin-bottom: 12px; }
+    label { 
+      font-size: 10px; color: #a78bfa; display: block; margin-bottom: 4px;
+      text-transform: uppercase; font-weight: bold; opacity: 0.8;
+    }
+    select { 
+      width: 100%; padding: 8px; background: #1e1b2e; color: #f1f5f9; 
+      border: 1px solid #4c1d95; border-radius: 6px; font-size: 13px; outline: none;
+    }
+    select:focus { border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2); }
+    
     #btnLigar {
-      width: 100%;
-      padding: 12px;
-      background: #10b981;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      font-weight: bold;
-      font-size: 13px;
-      cursor: pointer;
-      transition: background 0.2s;
+      width: 100%; padding: 12px;
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      border: none; border-radius: 8px; color: white; font-weight: bold;
+      cursor: pointer; transition: 0.2s; margin-bottom: 12px;
     }
-    #btnLigar:hover {
-      background: #059669;
+    #btnLigar:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    #btnLigar.ativo {
+        background: #ef4444; /* Vermelho para o botão de PARAR */
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      }
+
+    .warning { 
+      font-size: 10px; color: #fbbf24; background: rgba(251, 191, 36, 0.1); 
+      padding: 8px; border-radius: 6px; border-left: 3px solid #fbbf24;
+    }
+    .alerta-erro {
+      display: none; font-size: 10px; color: #f87171; background: rgba(248, 113, 113, 0.1); 
+      padding: 8px; border-radius: 6px; border-left: 3px solid #ef4444; margin-top: 10px;
     }
   </style>
 </head>
 <body>
   <div class="header">
     <h3>Manga Loader</h3>
+    <span style="font-size: 10px; opacity: 0.5;">v1.0</span>
   </div>
-  <div class="status-text">
-    Clique para recarregar a página e iniciar a detecção automática de imagens.
-  </div>
+
   <button id="btnLigar">LIGAR E ATUALIZAR</button>
+  
+  <div class="form-group">
+    <label>Origem (Mangá)</label>
+    <select id="selectOrigem">
+      <option value="auto">Detecção Automática</option>
+      <option value="en">Inglês</option>
+      <option value="es">Espanhol</option>
+      <option value="fr">Francês</option>
+      <option value="pt">Português</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Destino (Tradução)</label>
+    <select id="selectIdioma">
+      <option value="pt">Português</option>
+      <option value="en">Inglês</option>
+      <option value="es">Espanhol</option>
+      <option value="fr">Francês</option>
+    </select>
+  </div>
+
+  <div class="warning">💡 Automático foca em JPN/KOR/CHN.</div>
+  <div id="alertaStatus" class="alerta-erro">⚠️ URL alterada. Configure novamente.</div>
 
   <script src="auxiliarInterface.js"></script>
 </body>

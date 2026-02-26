@@ -8,11 +8,15 @@ export async function gerenciarOCR(objetoImagem) {
   console.log(lotesPosProcessamento)
   const res = await Azure.processarOCR(lotesPosProcessamento[0])
   console.log(res)
+  //GerenciadorAzure.processarFila(lotesPosProcessamento);
 };
 
 const GerenciadorAzure = {
   MAX_SIMULTANEO: 2,
 
+  async processarFila(todosOsLotes) {
+    
+  },
 };
 
 const Azure = {
@@ -40,7 +44,7 @@ const Azure = {
 
           if (resultado?.sucesso) {
             // mexer no retorno.
-            return resultado.texto // 2.9
+            return { texto: resultado.texto, idioma: resultado.idioma }; // 2.9
             // chamar funcao pra separar o texto.
             //depois dar o return.
           } else throw new Error(resultado?.erro || 'Erro no polling');
@@ -75,10 +79,11 @@ const Azure = {
           const { status, analyzeResult } = await response.json();
 
           if (status === 'succeeded') {
-            const linhas = analyzeResult?.readResults?.[0]?.lines;
+            const readResults = analyzeResult?.readResults?.[0];
+            const linhas = readResults?.lines;
 
             return linhas?.length
-              ? { sucesso: true, texto: linhas } 
+              ? { sucesso: true, texto: linhas} 
               : { sucesso: false, erro: "Imagem sem texto detectável" }
           };
 

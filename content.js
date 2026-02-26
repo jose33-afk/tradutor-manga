@@ -81,8 +81,13 @@ ATUALIZAR O ROLAR ATE O FINAL CASO CHEGUE ALGUMA VEZ NO FINAL DA PAGINA PELO USU
 const esperar = ms => new Promise(res => setTimeout(res, ms));//delay
 
 async function verificaSeContinua() {
-  const { estaCorrendo } = await chrome.storage.local.get('estaCorrendo');
-  return estaCorrendo === true;
+  try {  // estava dando erro porque quando eu dava f5 o caminho meio que mudava e regarregava a extensao
+    const data = await chrome.storage.local.get('estaCorrendo');
+    return data?.estaCorrendo === true;
+  } catch (e) {
+    // Se o contexto foi invalidado, retornamos false para parar qualquer loop
+    return false;
+  }
 };
 
 // E necessario por causa do F5.

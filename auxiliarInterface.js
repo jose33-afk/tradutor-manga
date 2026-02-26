@@ -1,45 +1,37 @@
-const bnt = document.querySelector('#btnLigar');
+const StorageManager = {
+  async salvar(keyOubjeto, data = null) {
+    if (!keyOubjeto) return;
 
-// modifica o estado do bnt conforme o estado da variavel estaCorrendo.
-function configurarBotao(estado) {
-  bnt.innerText = estado ? "PARAR CARREGAMENTO" : "LIGAR E ATUALIZAR";
-  bnt.style.background = estado ? "#ef4444" : "#22c55e";
+    try {
+      const dataTosave = typeof keyOubjeto === 'object' && keyOubjeto !== null && !Array.isArray(keyOubjeto)
+          ? keyOubjeto : { [keyOubjeto]: data };
+
+      await chrome.storage.local.set(dataTosave);
+    } catch(e) { console.error("Erro no salvar:", e); }
+  },
+
+  async buscar(keys) {
+    if(!keys) return null;
+    try {
+      const res = await chrome.storage.local.get(keys);
+      return typeof keys === 'string' ? res[keys] : res;
+    } catch(e) { 
+      console.error("Erro no buscar:", e); 
+      return null;
+    }
+  },
+
+  async deletar(keys) { // 1.2
+    if (!keys) return;
+    try { await chrome.storage.local.remove(keys); }
+    catch(e) { console.error(`Erro ao deletar ${keys}:`, e); }
+  },
 };
 
-// Assim que abrir(interface extensao) ele consulta o storage.
-(async () => {
-  const { estaCorrendo } = await chrome.storage.local.get('estaCorrendo');
-  configurarBotao(estaCorrendo);
-})();
 
-// Para mudar o estado do bnt permanentemente.
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.estaCorrendo) {
-    const novoValor = changes.estaCorrendo.newValue;
-    configurarBotao(novoValor);
-  };
-});
-
-bnt.addEventListener('click', async () => {
-  const { estaCorrendo } = await chrome.storage.local.get('estaCorrendo');//2
-  
-  if (estaCorrendo) {
-    //Se ja esta rodando, apenas desliga a variavel(o content.js vai perceber).
-    await chrome.storage.local.set({ estaCorrendo: false });
-    window.close();
-  } else {
-    await chrome.storage.local.set({ estaCorrendo: true });
-    const [abaAtiva] = await chrome.tabs.query({ active: true, currentWindow: true });//3 
-    chrome.tabs.reload(abaAtiva.id);
-  };
-
-});
 
 
 /*
-  1 - tipo um eventLisner. -- o get sempre entrega em formato de {}.
-  2 - assim pega o valor e precisa ser igual, se quiser mudar o nome e assim {estaCorrendo:nomenovo}
-  3 - primeiro ele retorna uma array por padrao. Segundo e uma pesquisa nas abas do navegador active:true e a aba que esta destacada
-      na barra la em cima no navegador.
-      currentWindow e o local onde esse script esta sendo executado.
+  1.1 - Usamos [key] para que o JS entenda: "use o VALOR da variável key como nome da propriedade"
+  1.2 - Já aceita 'idioma' OU ['idioma', 'estaCorrendo'] nativamente!
 */
