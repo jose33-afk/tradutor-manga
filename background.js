@@ -1,49 +1,19 @@
 import { gerenciarOCR } from "./ocr_service.js";
+import StorageManager from "./storageManager.js";
 
-const PosInstalacaoExtensao = {
-  variaveisBase: {
-    estaCorrendo: false,
-    idiomaOrigem: "en",
-    idiomaConfig: "pt",
-    ultimaUrl: null
+const BackgroundManager = {
+  async _limparLixoDaAba(tabId) {
+    await StorageManager.destruirGaveta(tabId);// 2.1
   },
 
-  async configurarPrimeiroUso() {
-    const bancoInteiro = await chrome.storage.local.get(null); // 1.1
-    if (Object.keys(bancoInteiro).length === 0) { //1.2
-      console.log("🌱 Primeira instalação! Criando variáveis essenciais...");
-      await chrome.storage.local.set(this.variaveisBase);
-    }
-  },
+  init() {
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      this._limparLixoDaAba(tabId);
+    });
+  }
 }
 
-// ajeitar isso
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // O changeInfo.url só existe se a URL da aba realmente mudou
-  if (changeInfo.url) {
-    try {
-      // Puxa os dados do banco
-      const dados = await StorageManager.buscar(['estaCorrendo', 'ultimaUrl']);
-
-      // Se a extensão estiver LIGADA e a URL nova for diferente da salva...
-      if (dados.estaCorrendo && dados.ultimaUrl && tab.url !== dados.ultimaUrl) {
-        console.log("🛑 Mudança de URL detectada pelo Background! Desligando a extensão...");
-        
-        // Reseta o banco de dados para o padrão (Desliga tudo)
-        await StorageManager.salvar(StorageManager.variaveisBase);
-        
-        // BÔNUS: Se você quiser, pode injetar um aviso visual na tela ou só deixar desligar silenciosamente
-      }
-    } catch (erro) {
-      console.error("Erro no vigia do background:", erro);
-    }
-  }
-});
-// ajeitar isso
-
-chrome.runtime.onInstalled.addListener(() => {
-  PosInstalacaoExtensao.configurarPrimeiroUso();
-});
+BackgroundManager.init();
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request, sender.tab.id);
@@ -57,9 +27,8 @@ const Banco = {
   criarGavetas(linkDB) {
     const todasAsGavetas = [ ...this.gavetasOficiais, ...this.novasGavetas ];
     
-    //objectStoreNames.contains() retorna true ou false.
     todasAsGavetas.forEach(site => {
-      if (!linkDB.objectStoreNames.contains(site)) { 
+      if (!linkDB.objectStoreNames.contains(site)) {  // 1.3
         linkDB.createObjectStore(site, { keyPath: "capituloUrl" });
       };
     });
@@ -69,9 +38,8 @@ const Banco = {
     return new Promise((resolve, reject) => { 
       const pedido = indexedDB.open("MangaCache", 1); //1 
 
-      // Se for a primeira vez, ele cria as "gavetas".
-      pedido.onupgradeneeded = (e) => {
-        const linkDB = e.target.result; // link pra configurar.
+      pedido.onupgradeneeded = (e) => { // 1.4
+        const linkDB = e.target.result; // 1.5 
 
         // DELETAR GAVETAS.
         // if (linkDB.objectStoreNames.contains("nome da gaveta")) {
@@ -81,7 +49,7 @@ const Banco = {
         this.criarGavetas(linkDB);
       };
 
-      pedido.onsuccess = () => resolve(pedido.result); // link permanente.
+      pedido.onsuccess = () => resolve(pedido.result); // 1.6
       pedido.onerror = (e) => reject("Erro fatal ao abrir o banco:", e.target.error);
     });
   },
@@ -91,7 +59,7 @@ const Banco = {
     const gavetaNome = this._definirGaveta(site);
     
     return new Promise((resolve) => {
-      const operacao = linkDB.transaction([gavetaNome], "readonly");// readonly === leitura.
+      const operacao = linkDB.transaction([gavetaNome], "readonly"); // 1.7
       const gavetaAberta = operacao.objectStore(gavetaNome);
       const pedido = gavetaAberta.get(url);
 
@@ -111,8 +79,8 @@ const Banco = {
     const linkDB = await this.conectar();
     const gavetaNome = this._definirGaveta(site);
     
-    return new Promise((resolve, reject) => { // Nao funciona nativamente.
-      const operacao = linkDB.transaction([gavetaNome], "readwrite");// readwrite === escrita.
+    return new Promise((resolve, reject) => { // 1.8
+      const operacao = linkDB.transaction([gavetaNome], "readwrite");// 1.9
       const gavetaAberta = operacao.objectStore(gavetaNome);
 
       gavetaAberta.put(dados);
@@ -131,7 +99,7 @@ const Banco = {
 
   _definirGaveta(site) {
     const encontrado = this.gavetasOficiais.find(siteOficial => site.includes(siteOficial));
-    return encontrado ? encontrado : this.novasGavetas[0]; // "outros_sites".
+    return encontrado ? encontrado : this.novasGavetas[0]; // 2.0
   },
 };
 
@@ -195,5 +163,14 @@ async function gerenciarProcessamento(request, tabId) {
 /*
   1.1 - get(null) = "Me traga TUDO que tem no banco" para verificar se as variaveis ja existem ou precisa cria-las.
   1.2 - pega o seu objeto e extrai todas as chaves dele, transformando-as em um Array (uma lista). E como a gente sabe, Arrays possuem a propriedade .length!
+  1.3 - objectStoreNames.contains() retorna true ou false.
+  1.4 - Se for a primeira vez, ele cria as "gavetas".
+  1.5 - link pra configurar.
+  1.6 - link permanente.
+  1.7 - readonly === leitura.
+  1.8 - Nao funciona nativamente.
+  1.9 - readwrite === escrita.
+  2.0 - outros_sites".
+  2.1 - ele dispara toda vez que um aba e fechada, mas n bug. e e mais barato assim do que verificar se existe.
   1 - qualquer altercao na estrutura do banco ou deletar gavetas; exije a mudanca do valor, ou apagar o cache (F12 em Application).
 */

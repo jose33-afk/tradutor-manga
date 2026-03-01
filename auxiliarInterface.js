@@ -1,49 +1,4 @@
-const StorageManager = {
-  variaveisBase: {
-    estaCorrendo: false,
-    idiomaOrigem: "en",
-    idiomaConfig: "pt",
-    ultimaUrl: null
-  },
-
-  async salvar(keyOubjeto, data = null) {
-    if (!keyOubjeto) return;
-
-    try {
-      const dataTosave = typeof keyOubjeto === 'object' && keyOubjeto !== null && !Array.isArray(keyOubjeto)
-          ? keyOubjeto : { [keyOubjeto]: data };
-
-      await chrome.storage.local.set(dataTosave);
-    } catch(e) { console.error("Erro no salvar:", e); }
-  },
-
-  async buscar(keys) {
-    if(!keys) return null;
-    try {
-      const res = await chrome.storage.local.get(keys);
-      if (typeof keys === 'string') return res[keys] !== undefined ? res[keys] : this.variaveisBase[keys];
-
-      if (Array.isArray(keys)) {
-        const resultado = {};
-        keys.forEach(k => {
-          resultado[k] = res[k] !== undefined ? res[k] : this.variaveisBase[k];
-        });
-
-        return resultado;
-      }
-      return null; 
-    } catch(e) { 
-      console.error("Erro no buscar:", e); 
-      return null;
-    }
-  },
-
-  async deletar(keys) { // 1.2
-    if (!keys) return;
-    try { await chrome.storage.local.remove(keys); }
-    catch(e) { console.error(`Erro ao deletar ${keys}:`, e); }
-  },
-}
+import StorageManager from './storageManager.js';
 
 const Dicionario = {
   erro: [
@@ -58,109 +13,110 @@ const Dicionario = {
   ]
 };
 
-const InterfaceManager = {
-  el: null,
 
-  _mostrarAlerta (msg, type = 'info') {
-    this.el.alerta.innerHTML = msg;
-    this.el.alerta.className = `alerta-box alerta-${type}`;
-    this.el.alerta.style.display = 'block';
+// const InterfaceManager = {
+//   el: null,
 
-    if (type === 'erro') this.el.btn.disabled = true; // 1.4
-  },
+//   _mostrarAlerta (msg, type = 'info') {
+//     this.el.alerta.innerHTML = msg;
+//     this.el.alerta.className = `alerta-box alerta-${type}`;
+//     this.el.alerta.style.display = 'block';
 
-  _esconderAlerta() {
-    this.el.alerta.style.display = 'none';
-    this.el.btn.disabled = false; // 1.4
-  },
+//     if (type === 'erro') this.el.btn.disabled = true; // 1.4
+//   },
 
-  _atualizarBotao (ativo) {
-    this.el.btn.innerText = ativo ? "PARAR SERVIÇO" : "LIGAR E ATUALIZAR";
-    ativo ? this.el.btn.classList.add('ativo') : this.el.btn.classList.remove('ativo');
-  },
+//   _esconderAlerta() {
+//     this.el.alerta.style.display = 'none';
+//     this.el.btn.disabled = false; // 1.4
+//   },
 
-  async _verificarMudancaURL(aba, dados) {
-    if (dados.estaCorrendo && dados.ultimaUrl && aba?.url !== dados.ultimaUrl) { // 1.3
-      const novoEstado = StorageManager.variaveisBase;
-      await StorageManager.salvar(novoEstado);
-      this._mostrarAlerta(Dicionario.erro[0], 'erro');
-      return novoEstado;
-    }
-    return dados;
-  },
+//   _atualizarBotao (ativo) {
+//     this.el.btn.innerText = ativo ? "PARAR SERVIÇO" : "LIGAR E ATUALIZAR";
+//     ativo ? this.el.btn.classList.add('ativo') : this.el.btn.classList.remove('ativo');
+//   },
 
-  async init() {
-    this.el = {
-      btn: document.querySelector('#btnLigar'),
-      traducao: document.querySelector('#selectIdioma'),
-      origem: document.querySelector('#selectOrigem'),
-      alerta: document.querySelector('#alertaStatus')
-    }
+//   async _verificarMudancaURL(aba, dados) {
+//     if (dados.estaCorrendo && dados.ultimaUrl && aba?.url !== dados.ultimaUrl) { // 1.3
+//       const novoEstado = StorageManager.variaveisBase;
+//       await StorageManager.salvar(novoEstado);
+//       this._mostrarAlerta(Dicionario.erro[0], 'erro');
+//       return novoEstado;
+//     }
+//     return dados;
+//   },
 
-    try {
-      const dados = await StorageManager.buscar(['estaCorrendo', 'idiomaConfig', 'idiomaOrigem', 'ultimaUrl']);
-      const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
-      const estadoValidado = await this._verificarMudancaURL(aba, dados);
+//   async init() {
+//     this.el = {
+//       btn: document.querySelector('#btnLigar'),
+//       traducao: document.querySelector('#selectIdioma'),
+//       origem: document.querySelector('#selectOrigem'),
+//       alerta: document.querySelector('#alertaStatus')
+//     }
 
-      this.el.traducao.value = dados.idiomaConfig || "pt";
-      this.el.origem.value = estadoValidado.idiomaOrigem || "en";
-      this._atualizarBotao(estadoValidado.estaCorrendo);
-      this.registrarEventos();
-    } catch(e) {
-      console.error('Erro na inicialização:', e);
-    }
-  },
+//     try {
+//       const dados = await StorageManager.buscar(['estaCorrendo', 'idiomaConfig', 'idiomaOrigem', 'ultimaUrl']);
+//       const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
+//       const estadoValidado = await this._verificarMudancaURL(aba, dados);
 
-  registrarEventos() {
-    this.el.traducao.addEventListener('change', e => {
-      StorageManager.salvar({ idiomaConfig: e.target.value });
-    });
+//       this.el.traducao.value = dados.idiomaConfig || "pt";
+//       this.el.origem.value = estadoValidado.idiomaOrigem || "en";
+//       this._atualizarBotao(estadoValidado.estaCorrendo);
+//       this.registrarEventos();
+//     } catch(e) {
+//       console.error('Erro na inicialização:', e);
+//     }
+//   },
 
-    this.el.origem.addEventListener('change', (e) => {
-      StorageManager.salvar({ idiomaOrigem: e.target.value });
-      this._esconderAlerta();
-    });
+//   registrarEventos() {
+//     this.el.traducao.addEventListener('change', e => {
+//       StorageManager.salvar({ idiomaConfig: e.target.value });
+//     });
 
-    this.el.btn.addEventListener('click', () => this.handleLigarServico());
-  },
+//     this.el.origem.addEventListener('change', (e) => {
+//       StorageManager.salvar({ idiomaOrigem: e.target.value });
+//       this._esconderAlerta();
+//     });
 
-  async handleLigarServico() {
-    const origemSelect = this.el.origem.value;
-    const traducaoSelect = this.el.traducao.value;
+//     this.el.btn.addEventListener('click', () => this.handleLigarServico());
+//   },
+
+//   async handleLigarServico() {
+//     const origemSelect = this.el.origem.value;
+//     const traducaoSelect = this.el.traducao.value;
     
-    try {
-      const estaCorrendo = await StorageManager.buscar('estaCorrendo');
-      const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
+//     try {
+//       const estaCorrendo = await StorageManager.buscar('estaCorrendo');
+//       const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-      if (estaCorrendo) { // 1.5
-        await StorageManager.salvar(StorageManager.variaveisBase);
-        this._atualizarBotao(false);
-        this._mostrarAlerta(Dicionario.info[0], 'info');
-      } else {
-        if (origemSelect === traducaoSelect && origemSelect !== 'auto') {
-          this._mostrarAlerta(Dicionario.erro[1], "erro");
-          return; // 1.6
-        }
+//       if (estaCorrendo) { // 1.5
+//         await StorageManager.salvar(StorageManager.variaveisBase);
+//         this._atualizarBotao(false);
+//         this._mostrarAlerta(Dicionario.info[0], 'info');
+//       } else {
+//         if (origemSelect === traducaoSelect && origemSelect !== 'auto') {
+//           this._mostrarAlerta(Dicionario.erro[1], "erro");
+//           return; // 1.6
+//         }
 
-        await StorageManager.salvar({
-          estaCorrendo: true, 
-          idiomaConfig: traducaoSelect, 
-          idiomaOrigem: origemSelect,
-          ultimaUrl: aba?.url || null
-        }); 
+//         await StorageManager.salvar({
+//           estaCorrendo: true, 
+//           idiomaConfig: traducaoSelect, 
+//           idiomaOrigem: origemSelect,
+//           ultimaUrl: aba?.url || null
+//         }); 
 
-        this._atualizarBotao(true);
-        this._esconderAlerta();
-      }
-    } catch (e) {
-      console.error("Erro na funcao principal:", e);
-    }
-  }
-}
+//         this._atualizarBotao(true);
+//         this._esconderAlerta();
+//       }
+//     } catch (e) {
+//       console.error("Erro na funcao principal:", e);
+//     }
+//   }
+// }
 
-document.addEventListener('DOMContentLoaded', () => {
-  InterfaceManager.init();
-});
+// document.addEventListener('DOMContentLoaded', () => {
+//   InterfaceManager.init();
+// });
 
 /*
   1.1 - Usamos [key] para que o JS entenda: "use o VALOR da variável key como nome da propriedade"
@@ -169,4 +125,6 @@ document.addEventListener('DOMContentLoaded', () => {
   1.4 - TRAVA O BOTÃO: O usuário não pode clicar em nada!
   1.5 - PARAR O SERVIÇO
   1.6 - o listener n morre so porque ele encerrou a funcao hand, ele so morre quando fecha a janelinha.
+  1.7 - usamos o molde de variaveisBase para não dar erro. no salvar tem uma parte que cria se n existir.
+  1.8 - o ! so inverte o resultado da verificacao que esta colado
 */
