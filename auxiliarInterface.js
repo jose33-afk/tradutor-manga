@@ -9,114 +9,189 @@ const Dicionario = {
     // Se precisar de avisos amarelos no futuro, coloque aqui
   ],
   info: [
-    "🛑 Serviço pausado manualmente."                                            
+    "⚠️ Serviço pausado manualmente."                                            
   ]
 };
 
+const InterfaceManager = {
+  tabIdAtual: null,
+  idiomaSugerido: null,
+  el: {}, 
 
-// const InterfaceManager = {
-//   el: null,
+  detector: {
+    mapeamento: { 
+      'ja': 'ja', 'ko': 'ko', 'zh': 'zh', 'zh-cn': 'zh', 'zh-tw': 'zh', 
+      'pt': 'pt', 'pt-br': 'pt', 'en': 'en', 'en-us': 'en', 'es': 'es' 
+    },
 
-//   _mostrarAlerta (msg, type = 'info') {
-//     this.el.alerta.innerHTML = msg;
-//     this.el.alerta.className = `alerta-box alerta-${type}`;
-//     this.el.alerta.style.display = 'block';
+    converter(langBruto) {
+      if (!langBruto || langBruto.trim() === "") return 'en';
+      const langMinusculo = langBruto.toLowerCase().trim();
+      if (this.mapeamento[langMinusculo]) return this.mapeamento[langMinusculo];
+      return this.mapeamento[langMinusculo.split('-')[0]] || 'en';
+    },
+  },
 
-//     if (type === 'erro') this.el.btn.disabled = true; // 1.4
-//   },
+  async init() {
+    this.el = {
+      btnLigar: document.querySelector('#btnLigar'),
+      selectOrigem: document.querySelector('#selectOrigem'),
+      selectTraducao: document.querySelector('#selectIdioma'),
+      secaoConfirmacao: document.querySelector('#secaoConfirmacao'),
+      textoConfirmacao: document.querySelector('#textoConfirmacao'),
+      textoSugestao: document.querySelector('#idiomaSugerido'),
+      containerBotoes: document.querySelector('#containerBotoesSimNao'),
+      btnSim: document.querySelector('#btnSim'),
+      btnNao: document.querySelector('#btnNao'),
+      alertaErro: document.querySelector('#alertaStatus')
+    };
 
-//   _esconderAlerta() {
-//     this.el.alerta.style.display = 'none';
-//     this.el.btn.disabled = false; // 1.4
-//   },
+    try {
+      this.tabIdAtual = await StorageManager.getTabId();
+      const dados = await StorageManager.buscar(this.tabIdAtual);
 
-//   _atualizarBotao (ativo) {
-//     this.el.btn.innerText = ativo ? "PARAR SERVIÇO" : "LIGAR E ATUALIZAR";
-//     ativo ? this.el.btn.classList.add('ativo') : this.el.btn.classList.remove('ativo');
-//   },
+      this.el.selectTraducao.value = dados.idiomaConfig;
 
-//   async _verificarMudancaURL(aba, dados) {
-//     if (dados.estaCorrendo && dados.ultimaUrl && aba?.url !== dados.ultimaUrl) { // 1.3
-//       const novoEstado = StorageManager.variaveisBase;
-//       await StorageManager.salvar(novoEstado);
-//       this._mostrarAlerta(Dicionario.erro[0], 'erro');
-//       return novoEstado;
-//     }
-//     return dados;
-//   },
+      if (dados.estaCorrendo || dados.jaConfirmou) {
+        this._liberarInterfacePronta(dados.idiomaOrigem, dados.estaCorrendo);
+      } else {
+        const ultimoIdioma = await StorageManager.buscar('global', 'ultimoIdiomaOrigem');
 
-//   async init() {
-//     this.el = {
-//       btn: document.querySelector('#btnLigar'),
-//       traducao: document.querySelector('#selectIdioma'),
-//       origem: document.querySelector('#selectOrigem'),
-//       alerta: document.querySelector('#alertaStatus')
-//     }
+        if (ultimoIdioma) {
+          this.idiomaSugerido = ultimoIdioma;
+        } else {
+          const resultado = await chrome.scripting.executeScript({
+            target: { tabId: this.tabIdAtual },
+            func: () => document.documentElement.lang
+          });
 
-//     try {
-//       const dados = await StorageManager.buscar(['estaCorrendo', 'idiomaConfig', 'idiomaOrigem', 'ultimaUrl']);
-//       const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
-//       const estadoValidado = await this._verificarMudancaURL(aba, dados);
+        this.idiomaSugerido = this.detector.converter(resultado[0]?.result);
+        }
+        
+        this._iniciarFluxoSeguranca();
+      }
 
-//       this.el.traducao.value = dados.idiomaConfig || "pt";
-//       this.el.origem.value = estadoValidado.idiomaOrigem || "en";
-//       this._atualizarBotao(estadoValidado.estaCorrendo);
-//       this.registrarEventos();
-//     } catch(e) {
-//       console.error('Erro na inicialização:', e);
-//     }
-//   },
+      this._registrarEventos();
+    } catch(e) {
+      console.error("Erro na inicialização da Interface:", e); // 2.3
+      this.el.selectOrigem.disabled = false;
+      this._registrarEventos();
+    }
+  },
 
-//   registrarEventos() {
-//     this.el.traducao.addEventListener('change', e => {
-//       StorageManager.salvar({ idiomaConfig: e.target.value });
-//     });
+  async handleAlternarServico () {
+    if (!this._validarIdiomas()) return;
 
-//     this.el.origem.addEventListener('change', (e) => {
-//       StorageManager.salvar({ idiomaOrigem: e.target.value });
-//       this._esconderAlerta();
-//     });
+    const dadosAtuais = await StorageManager.buscar(this.tabIdAtual);
+    const novoEstado = !dadosAtuais.estaCorrendo;
 
-//     this.el.btn.addEventListener('click', () => this.handleLigarServico());
-//   },
+    if(novoEstado) {
+      await StorageManager.salvar(this.tabIdAtual, {
+        estaCorrendo: true,
+        idiomaOrigem: this.el.selectOrigem.value,
+        idiomaConfig: this.el.selectTraducao.value,
+        jaConfirmou: true
+      });
 
-//   async handleLigarServico() {
-//     const origemSelect = this.el.origem.value;
-//     const traducaoSelect = this.el.traducao.value;
+      await StorageManager.salvar('global', { ultimoIdiomaOrigem: this.el.selectOrigem.value }); //2.4
+      this._setBotaoEstado(true);
+      window.close();
+    } else {
+      await StorageManager.salvar(this.tabIdAtual, { estaCorrendo: false });
+      this._setBotaoEstado(false);
+      window.close();
+    }
+  },
+
+  _registrarEventos() {
+    this.el.btnSim.addEventListener('click', async () => {
+      await StorageManager.salvar(this.tabIdAtual, { idiomaOrigem: this.idiomaSugerido, jaConfirmou: true });
+      await StorageManager.salvar('global', { ultimoIdiomaOrigem: this.idiomaSugerido });
+      this._liberarInterfacePronta(this.idiomaSugerido);
+    });
+
+    this.el.btnNao.addEventListener('click', () => {
+      this.el.containerBotoes.classList.add('oculto');
+      this.el.secaoConfirmacao.className = 'secao-confirmacao modo-aviso';
+      this.el.textoConfirmacao.className = 'texto-destaque';
+      this.el.textoConfirmacao.innerText = 'SELECIONE A ORIGEM NA LISTA ABAIXO';
+
+      this.el.selectOrigem.disabled = false;
+      this.el.selectOrigem.value = "";
+      this._validarIdiomas(); 
+    });
+
+    this.el.selectOrigem.addEventListener('change', () => {
+      this._validarIdiomas();
+      this.el.secaoConfirmacao.className = 'secao-confirmacao oculto';
+    });
+
+    this.el.selectTraducao.addEventListener('change', () => this._validarIdiomas());
+    this.el.btnLigar.addEventListener('click', () => this.handleAlternarServico());
+  },
+
+  _iniciarFluxoSeguranca() {
+    this.el.secaoConfirmacao.className = 'secao-confirmacao modo-pergunta';
+    this.el.textoConfirmacao.className = 'texto-pergunta';
+    this.el.textoConfirmacao.innerHTML = 'O mangá está em <strong id="idiomaSugerido">---</strong>?';
     
-//     try {
-//       const estaCorrendo = await StorageManager.buscar('estaCorrendo');
-//       const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
+    this.el.textoSugestao = document.querySelector('#idiomaSugerido');
+    this.el.textoSugestao.innerText = this.idiomaSugerido.toUpperCase();
 
-//       if (estaCorrendo) { // 1.5
-//         await StorageManager.salvar(StorageManager.variaveisBase);
-//         this._atualizarBotao(false);
-//         this._mostrarAlerta(Dicionario.info[0], 'info');
-//       } else {
-//         if (origemSelect === traducaoSelect && origemSelect !== 'auto') {
-//           this._mostrarAlerta(Dicionario.erro[1], "erro");
-//           return; // 1.6
-//         }
+    this.el.containerBotoes.classList.remove('oculto');
+    this.el.selectOrigem.value = this.idiomaSugerido;
+    
+    this.el.btnLigar.disabled = true;
+    this.el.btnLigar.className = 'btn-desabilitado';
+  },
 
-//         await StorageManager.salvar({
-//           estaCorrendo: true, 
-//           idiomaConfig: traducaoSelect, 
-//           idiomaOrigem: origemSelect,
-//           ultimaUrl: aba?.url || null
-//         }); 
+  _liberarInterfacePronta(idioma, jaEstavaLigado = false) {
+    this.el.secaoConfirmacao.className = 'secao-confirmacao oculto';
+    if (idioma) this.el.selectOrigem.value = idioma;
+    
+    this.el.selectOrigem.disabled = false;
+    this._setBotaoEstado(jaEstavaLigado);
+    this._validarIdiomas();
+  },
 
-//         this._atualizarBotao(true);
-//         this._esconderAlerta();
-//       }
-//     } catch (e) {
-//       console.error("Erro na funcao principal:", e);
-//     }
-//   }
-// }
+  _validarIdiomas() {
+    const origem = this.el.selectOrigem.value;
+    const destino = this.el.selectTraducao.value;
 
-// document.addEventListener('DOMContentLoaded', () => {
-//   InterfaceManager.init();
-// });
+    if (origem && destino && origem === destino) {
+      this.el.alertaErro.innerHTML = Dicionario.erro[1];
+      this.el.alertaErro.style.display = 'block'; 
+      
+      this.el.btnLigar.disabled = true;
+      this.el.btnLigar.className = 'btn-desabilitado';
+      return false;
+    }
+
+    this.el.alertaErro.style.display = 'none';
+    
+    if (origem) {
+      this.el.btnLigar.disabled = false;
+      this.el.btnLigar.classList.remove('btn-desabilitado');
+    
+      if (!this.el.btnLigar.classList.contains('btn-rodando')) {
+         this.el.btnLigar.className = 'btn-parado';
+      }
+    }
+    return true;
+  },
+
+  _setBotaoEstado(rodando) {
+    if (rodando) {
+      this.el.btnLigar.innerText = "PARAR TRADUÇÃO";
+      this.el.btnLigar.className = 'btn-rodando';
+    } else {
+      this.el.btnLigar.innerText = "LIGAR E ATUALIZAR";
+      this.el.btnLigar.className = 'btn-parado';
+    }
+  },
+}
+
+document.addEventListener('DOMContentLoaded', () => InterfaceManager.init());
 
 /*
   1.1 - Usamos [key] para que o JS entenda: "use o VALOR da variável key como nome da propriedade"
@@ -127,4 +202,10 @@ const Dicionario = {
   1.6 - o listener n morre so porque ele encerrou a funcao hand, ele so morre quando fecha a janelinha.
   1.7 - usamos o molde de variaveisBase para não dar erro. no salvar tem uma parte que cria se n existir.
   1.8 - o ! so inverte o resultado da verificacao que esta colado
+  1.9 - se ja estiver correndo
+  2.0 -  Restaura o visual original da caixa (caso tenha sido transformada antes)
+  2.1 - Restaura o texto e a margem do parágrafo
+  2.2 - Encolhe e estiliza o container para parecer o modelo ".alerta-info"
+  2.3 - Se o executeScript falhar, libera o select manual para o usuário não travar
+  2.4 - Salva globalmente para as próximas abas
 */

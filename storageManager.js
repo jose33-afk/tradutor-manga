@@ -1,4 +1,8 @@
 const StorageManager = {
+  variaveisGlobaisBase: {
+    ultimoIdiomaOrigem: null
+  },
+
   variaveisBase: {
     estaCorrendo: false,
     idiomaOrigem: "en",
@@ -11,17 +15,26 @@ const StorageManager = {
       console.error("[StorageManager] Faltou o 'await' na hora de pegar o tabId! Ele chegou como Promise.");
       return null;
     }
+    if (tabId === 'global') return true;
     if (tabId === null || typeof tabId !== 'number') return null;
     return true;
   },
 
+  _getConfig(tabId) {
+    if (tabId === 'global') {
+      return { nomeGaveta: 'configuracoesGlobais', base: this.variaveisGlobaisBase };
+    }
+    return { nomeGaveta: `aba_${tabId}`, base: this.variaveisBase };
+  },
+
   async salvar(tabId, novosdados) {
     if (!this._isTabIdValido(tabId) || typeof novosdados !== 'object' || novosdados === null ) return; // 1.8
-    const nomeGaveta = `aba_${tabId}`;
+    
+    const { nomeGaveta, base } = this._getConfig(tabId);
 
     try {
       const res = await chrome.storage.local.get(nomeGaveta);
-      const dados = res[nomeGaveta] || { ...this.variaveisBase };
+      const dados = res[nomeGaveta] || { ...base };
 
       const dadosAtualizados = { ...dados, ...novosdados };
       await chrome.storage.local.set({ [nomeGaveta]: dadosAtualizados });
@@ -31,18 +44,19 @@ const StorageManager = {
 
   async buscar(tabId, keys) {
     if(!this._isTabIdValido(tabId)) return null;
-    const nomeGaveta = `aba_${tabId}`;
+    const { nomeGaveta, base } = this._getConfig(tabId);
 
     try {
       const res = await chrome.storage.local.get(nomeGaveta); 
-      const dadosAba = res[nomeGaveta] || { ...this.variaveisBase }; // 1.7
+      const dadosAba = res[nomeGaveta] || { ...base }; // 1.7
+      if (!keys) return dadosAba;
 
-      if (typeof keys === 'string') return dadosAba[keys] !== undefined ? dadosAba[keys] : this.variaveisBase[keys];
+      if (typeof keys === 'string') return dadosAba[keys] !== undefined ? dadosAba[keys] : base[keys];
 
       if (Array.isArray(keys)) {
         const resultado = {};
         keys.forEach(k => {
-          resultado[k] = dadosAba[k] !== undefined ? dadosAba[k] : this.variaveisBase[k];
+          resultado[k] = dadosAba[k] !== undefined ? dadosAba[k] : base[k];
         });
 
         return resultado;
@@ -60,7 +74,7 @@ const StorageManager = {
   },
 
   async destruirGaveta(tabId) {
-    if (!this._isTabIdValido(tabId)) return;
+    if (!this._isTabIdValido(tabId) || tabId === 'global') return;
     try { await chrome.storage.local.remove(`aba_${tabId}`); }
     catch (e) { console.error(`Erro ao apagar a gaveta [${tabId}]`)};
   },
