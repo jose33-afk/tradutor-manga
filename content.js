@@ -18,3 +18,20 @@ const Ultils = {
   },
 }
 
+const EventManager = {
+  async verificaSeContinua() {
+    try {
+      const estaCorrendo = await chrome.runtime.sendMessage({ action: "VERIFICA_ESTADO_ABA" });
+      return estaCorrendo;
+    } catch(e) {
+      return false;
+    }
+  },
+}
+
+async function teste() {
+  console.log(await EventManager.verificaSeContinua())
+  
+}
+
+teste()
