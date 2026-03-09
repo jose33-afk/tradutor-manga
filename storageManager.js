@@ -1,6 +1,7 @@
 const StorageManager = {
   variaveisGlobaisBase: {
-    ultimoIdiomaOrigem: null
+    ultimoIdiomaOrigem: null,
+    hardware: { perfil: "NORMAL", ultimoTeste: 0 }
   },
 
   variaveisBase: {

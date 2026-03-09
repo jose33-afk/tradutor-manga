@@ -13,6 +13,41 @@ const Dicionario = {
   ]
 };
 
+const PerformanceManager = {
+  obterPerfil() {
+    const nucleos = navigator.hardwareConcurrency || 4;
+    const inicio = performance.now(); // 2.5
+    let iteracoes = 0;
+
+    while (performance.now() - inicio < 50) {
+      Math.sqrt(Math.random() * Math.random());
+      iteracoes++;
+    }
+    
+    if (nucleos >= 8 && iteracoes > 250000) return "ULTRA";
+    if (nucleos >= 4 && iteracoes > 120000) return "NORMAL";
+    return "LOW";
+  },
+
+  async verificarEatualizarHardware() {
+    const agora = Date.now();
+    const tempo15Dias = 15 * 24 * 60 * 60 * 1000;
+
+    const dadosHardware = await StorageManager.buscar('global', 'hardware');
+    
+    if (agora - dadosHardware.ultimoTeste > tempo15Dias) {
+      const novoPerfil = this.obterPerfil();
+
+      await StorageManager.salvar('global', {
+        hardware: {
+          perfil: novoPerfil,
+          ultimoTeste: agora
+        }
+      });
+    }
+  }
+}
+
 const InterfaceManager = {
   tabIdAtual: null,
   idiomaSugerido: null,
@@ -48,6 +83,9 @@ const InterfaceManager = {
 
     try {
       this.tabIdAtual = await StorageManager.getTabId();
+
+      await PerformanceManager.verificarEatualizarHardware();
+
       const dados = await StorageManager.buscar(this.tabIdAtual);
 
       this.el.selectTraducao.value = dados.idiomaConfig;
@@ -193,7 +231,11 @@ const InterfaceManager = {
   },
 }
 
-document.addEventListener('DOMContentLoaded', () => InterfaceManager.init());
+document.addEventListener('DOMContentLoaded', () => {
+  InterfaceManager.init()
+  PerformanceManager.verificarEatualizarHardware()
+  }
+);
 
 /*
   1.1 - Usamos [key] para que o JS entenda: "use o VALOR da variável key como nome da propriedade"
@@ -210,4 +252,5 @@ document.addEventListener('DOMContentLoaded', () => InterfaceManager.init());
   2.2 - Encolhe e estiliza o container para parecer o modelo ".alerta-info"
   2.3 - Se o executeScript falhar, libera o select manual para o usuário não travar
   2.4 - Salva globalmente para as próximas abas
+  2.5 - isso e um date.now() potente, e e tipo um cronometro que comeca do zero.
 */

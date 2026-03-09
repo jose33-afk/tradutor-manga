@@ -94,7 +94,11 @@ const ScrollManager = {
     const { gerirPopup } = await Utils.importarModulo('popDescida.js');
     
     let elementoScroll = await this._encontrarElementoComRetry();
-    console.log(elementoScroll)
+    
+    if (elementoScroll) {
+      gerirPopup('abrir');
+      
+    }
   },
 }
 
