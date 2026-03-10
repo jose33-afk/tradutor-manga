@@ -14,6 +14,12 @@ const Utils = {
     const caminho = chrome.runtime.getURL(nomeArquivo);
     return await import(caminho);
   },
+
+  async getConfigHardware() {
+    const dadosHardware = await StorageManager.buscar('global', 'hardware');
+    const perfil = dadosHardware?.perfil || 'NORMAL';
+    console.log(perfil)
+  },
 }
 
 const EventManager = {
@@ -103,7 +109,8 @@ const ScrollManager = {
 }
 
 async function teste() {
-  ScrollManager.executarDescidaPrincipal()
+  //ScrollManager.executarDescidaPrincipal()
+  Utils.getConfigHardware()
   
 }
 

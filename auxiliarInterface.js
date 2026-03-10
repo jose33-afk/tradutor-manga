@@ -1,5 +1,3 @@
-import StorageManager from './storageManager.js';
-
 const Dicionario = {
   erro: [
     "⚠️ <strong>A página mudou.</strong> Serviço pausado. Configure novamente.", 
@@ -231,11 +229,7 @@ const InterfaceManager = {
   },
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  InterfaceManager.init()
-  PerformanceManager.verificarEatualizarHardware()
-  }
-);
+document.addEventListener('DOMContentLoaded', () => InterfaceManager.init());
 
 /*
   1.1 - Usamos [key] para que o JS entenda: "use o VALOR da variável key como nome da propriedade"

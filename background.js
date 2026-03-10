@@ -1,5 +1,7 @@
-import { gerenciarOCR } from "./ocr_service.js";
-import StorageManager from "./storageManager.js";
+importScripts(
+  'storageManager.js',
+  'ocr_service.js',
+);
 
 const BackgroundManager = {
   async _limparLixoDaAba(tabId) {

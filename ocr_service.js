@@ -1,6 +1,4 @@
-import { azureConfig } from "./config.js";
-
-export async function gerenciarOCR(objetoImagem) {
+async function gerenciarOCR(objetoImagem) {
   const listaLimpa = objetoImagem.filter(img => img.imageDataUrl && img.posicoes);
   
   const lotes = GeradorDeLotes.montarLotes(listaLimpa);
@@ -10,6 +8,8 @@ export async function gerenciarOCR(objetoImagem) {
   console.log(res)
   //GerenciadorAzure.processarFila(lotesPosProcessamento);
 };
+
+globalThis.gerenciarOCR = gerenciarOCR;
 
 const GerenciadorAzure = {
   MAX_SIMULTANEO: 2,

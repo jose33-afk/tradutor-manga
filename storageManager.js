@@ -81,4 +81,4 @@ const StorageManager = {
   },
 }
 
-export default StorageManager ;
+globalThis.StorageManager = StorageManager;

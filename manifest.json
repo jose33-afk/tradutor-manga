@@ -17,13 +17,12 @@
     "http://*/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["storageManager.js","content.js"]
     }
   ],
   "web_accessible_resources": [
