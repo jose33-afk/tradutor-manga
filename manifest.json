@@ -22,12 +22,12 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["storageManager.js","content.js"]
+      "js": ["storageManager.js", "filtro.js", "content.js"]
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["filtro.js", "popDescida.js", "auxiliarInterface.js", "preview.html", "preview.js"],
+      "resources": ["popDescida.js"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -1,4 +1,4 @@
-export async function filtroImg(element, url, index, estado, posicoes) { // 1.1 
+async function filtroImg(element, url, index, estado, posicoes) { // 1.1 
   const LIMITE_ERROS = 4;
   let dataBlob;
   
@@ -25,6 +25,8 @@ export async function filtroImg(element, url, index, estado, posicoes) { // 1.1
     return { index, erro: e.message };
   };
 };
+
+globalThis.filtroImg = filtroImg;
 
 async function tentarFetch(entrada, estado) {
   if (entrada instanceof Blob) return entrada; // 1.5
