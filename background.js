@@ -5,13 +5,50 @@ importScripts(
 
 const BackgroundManager = {
   async _limparLixoDaAba(tabId) {
-    await StorageManager.destruirGaveta(tabId);// 2.1
+    await StorageManager.destruirGaveta(tabId); // 2.1
   },
 
-  init() {
-    chrome.tabs.onRemoved.addListener((tabId) => {
-      this._limparLixoDaAba(tabId);
+  async _faxinaGeral() {
+    const todoStorage = await chrome.storage.local.get(null);
+    const KeysToDelet = Object.keys(todoStorage).filter(key => key.startsWith('aba_'));
+    
+    if (KeysToDelet.length > 0) {
+      await chrome.storage.local.remove(KeysToDelet);
+    }
+  },
+
+  _registrarOuvintesRelativos() {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'local') return;
+
+      for (const key in changes) {
+        if (!key.startsWith('aba_')) continue;
+
+        const tabId = parseInt(key.replace('aba_', ''));
+        if (isNaN(tabId)) continue;
+
+        const { newValue, oldValue } = changes[key];
+        
+        const estadoAtual = newValue?.estaCorrendo === true; // 2.4
+        const estadoAntigo = oldValue?.estaCorrendo === true;
+
+        if (estadoAtual !== estadoAntigo) {
+          const mensagem = estadoAtual 
+            ? { action: "INICIAR_TRADUCAO" }
+            : { action: "PARAR_TRADUCAO" }
+
+          chrome.tabs.sendMessage(tabId, mensagem);
+        }
+      }
     });
+  },
+  
+  init() {
+    chrome.runtime.onStartup.addListener(() => this._faxinaGeral()); // 2.3
+    chrome.runtime.onInstalled.addListener(() => this._faxinaGeral());
+    chrome.tabs.onRemoved.addListener((tabId) => this._limparLixoDaAba(tabId));
+
+    this._registrarOuvintesRelativos();
   },
 
   async verificarSeContinua(id, sendResponse) {
@@ -19,7 +56,7 @@ const BackgroundManager = {
       const estaCorrendo = await StorageManager.buscar(id, 'estaCorrendo');
       sendResponse(estaCorrendo);
     } catch(e) {
-      console.error("[BackgroundManager] Erro ao verificar estado:", erro);
+      console.error("[BackgroundManager] Erro ao verificar estado:", e);
       sendResponse(false);
     }
   },
@@ -29,8 +66,9 @@ BackgroundManager.init();
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request, sender.tab.id);
+
   if (request.action === "VERIFICA_ESTADO_ABA") {
-    BackgroundManager.verificarSeContinua(sender.tab.id, sendResponse)
+    BackgroundManager.verificarSeContinua(sender.tab.id, sendResponse);
     return true; // 2.2
   };
 });
@@ -189,5 +227,7 @@ async function gerenciarProcessamento(request, tabId) {
   2.0 - outros_sites".
   2.1 - ele dispara toda vez que um aba e fechada, mas n bug. e e mais barato assim do que verificar se existe.
   2.2 - vai chegar via promise/await, impedindo que ele feche a conexão antes da hora.
+  2.3 - Limpa todos os caches antigos ao iniciar o Chrome ou instalar/atualizar a extensão
+  2.4 - O '=== true' garante que, se vier undefined, null ou texto, ele vira um 'false' limpo!
   1 - qualquer altercao na estrutura do banco ou deletar gavetas; exije a mudanca do valor, ou apagar o cache (F12 em Application).
 */

@@ -131,8 +131,6 @@ const InterfaceManager = {
 
       await StorageManager.salvar('global', { ultimoIdiomaOrigem: this.el.selectOrigem.value }); //2.4
       this._setBotaoEstado(true);
-
-      chrome.tabs.sendMessage(parseInt(this.tabIdAtual), { action: "INICIAR_TRADUCAO" });
       window.close();
     } else {
       await StorageManager.salvar(this.tabIdAtual, { estaCorrendo: false });
