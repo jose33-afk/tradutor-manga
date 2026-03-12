@@ -3,76 +3,6 @@ importScripts(
   'ocr_service.js',
 );
 
-const BackgroundManager = {
-  async _limparLixoDaAba(tabId) {
-    await StorageManager.destruirGaveta(tabId); // 2.1
-  },
-
-  async _faxinaGeral() {
-    const todoStorage = await chrome.storage.local.get(null);
-    const KeysToDelet = Object.keys(todoStorage).filter(key => key.startsWith('aba_'));
-    
-    if (KeysToDelet.length > 0) {
-      await chrome.storage.local.remove(KeysToDelet);
-    }
-  },
-
-  _registrarOuvintesRelativos() {
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== 'local') return;
-
-      for (const key in changes) {
-        if (!key.startsWith('aba_')) continue;
-
-        const tabId = parseInt(key.replace('aba_', ''));
-        if (isNaN(tabId)) continue;
-
-        const { newValue, oldValue } = changes[key];
-        
-        const estadoAtual = newValue?.estaCorrendo === true; // 2.4
-        const estadoAntigo = oldValue?.estaCorrendo === true;
-
-        if (estadoAtual !== estadoAntigo) {
-          const mensagem = estadoAtual 
-            ? { action: "INICIAR_TRADUCAO" }
-            : { action: "PARAR_TRADUCAO" }
-
-          chrome.tabs.sendMessage(tabId, mensagem);
-        }
-      }
-    });
-  },
-  
-  init() {
-    chrome.runtime.onStartup.addListener(() => this._faxinaGeral()); // 2.3
-    chrome.runtime.onInstalled.addListener(() => this._faxinaGeral());
-    chrome.tabs.onRemoved.addListener((tabId) => this._limparLixoDaAba(tabId));
-
-    this._registrarOuvintesRelativos();
-  },
-
-  async verificarSeContinua(id, sendResponse) {
-    try {
-      const estaCorrendo = await StorageManager.buscar(id, 'estaCorrendo');
-      sendResponse(estaCorrendo);
-    } catch(e) {
-      console.error("[BackgroundManager] Erro ao verificar estado:", e);
-      sendResponse(false);
-    }
-  },
-}
-
-BackgroundManager.init();
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action ===  "PROCESSAR_CAPITOLO") gerenciarProcessamento(request, sender.tab.id);
-
-  if (request.action === "VERIFICA_ESTADO_ABA") {
-    BackgroundManager.verificarSeContinua(sender.tab.id, sendResponse);
-    return true; // 2.2
-  };
-});
-
 const Banco = {
   // LISTA PRINCIPAL: Adicione novos sites de Leitura grandes aqui.
   gavetasOficiais: ["mangaplus.shueisha.co.jp", "mangadex.org"],
@@ -157,8 +87,83 @@ const Banco = {
   },
 };
 
+const BackgroundManager = {
+  async _limparLixoDaAba(tabId) {
+    await StorageManager.destruirGaveta(tabId); // 2.1
+  },
+
+  async _faxinaGeral() {
+    const todoStorage = await chrome.storage.local.get(null);
+    const KeysToDelet = Object.keys(todoStorage).filter(key => key.startsWith('aba_'));
+    
+    if (KeysToDelet.length > 0) {
+      await chrome.storage.local.remove(KeysToDelet);
+    }
+  },
+
+  _registrarOuvintesRelativos() {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'local') return;
+
+      for (const key in changes) {
+        if (!key.startsWith('aba_')) continue;
+
+        const tabId = parseInt(key.replace('aba_', ''));
+        if (isNaN(tabId)) continue;
+
+        const { newValue, oldValue } = changes[key];
+        
+        const estadoAtual = newValue?.estaCorrendo === true; // 2.4
+        const estadoAntigo = oldValue?.estaCorrendo === true;
+
+        if (estadoAtual !== estadoAntigo) {
+          const mensagem = estadoAtual 
+            ? { action: "INICIAR_TRADUCAO" }
+            : { action: "PARAR_TRADUCAO" }
+
+          chrome.tabs.sendMessage(tabId, mensagem).catch(() => {
+            console.warn(`[Erro] A aba ${tabId} não está pronta para receber mensagens (sem content script).`);
+          }); // 2.5 | 2.6
+        }
+      }
+    });
+  },
+  
+  init() {
+    chrome.runtime.onStartup.addListener(() => this._faxinaGeral()); // 2.3
+    chrome.runtime.onInstalled.addListener(() => this._faxinaGeral());
+    chrome.tabs.onRemoved.addListener((tabId) => this._limparLixoDaAba(tabId));
+
+    this._registrarOuvintesRelativos();
+    
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action ===  "PROCESSAR_CAPITOLO") {
+        gerenciarProcessamento(request, sender.tab.id)
+      }
+
+      if (request.action === "VERIFICA_ESTADO_ABA") {
+        this.verificarSeContinua(sender.tab.id, sendResponse);
+        return true; // 2.2
+      }
+    });
+  },
+
+  async verificarSeContinua(id, sendResponse) {
+    try {
+      const estaCorrendo = await StorageManager.buscar(id, 'estaCorrendo');
+      sendResponse(estaCorrendo);
+    } catch(e) {
+      console.error("[BackgroundManager] Erro ao verificar estado:", e);
+      sendResponse(false);
+    }
+  },
+}
+
+BackgroundManager.init();
+
 let limite = true; //teste
 
+// FUTURAMENTE MOVER ISSO PARA UM MODULO SEPARADO OU COLOCAR NO BACKGROUND MANAGER
 async function gerenciarProcessamento(request, tabId) {
   const { site, capituloUrl } = request.dadosExtras;
   const listaImagens = request.data; //Imgs so pra teste no final eu vou salvar o text e as cordenadas pro popup.
@@ -229,5 +234,7 @@ async function gerenciarProcessamento(request, tabId) {
   2.2 - vai chegar via promise/await, impedindo que ele feche a conexão antes da hora.
   2.3 - Limpa todos os caches antigos ao iniciar o Chrome ou instalar/atualizar a extensão
   2.4 - O '=== true' garante que, se vier undefined, null ou texto, ele vira um 'false' limpo!
+  2.5 - Esse metodo tabs o primeiro parametro e o ID da aba === endereco da copia do content, o segundo e a mesagem.
+  2.6 - da pra usar o catch assim, mas so em funcoes que retornam promise.
   1 - qualquer altercao na estrutura do banco ou deletar gavetas; exije a mudanca do valor, ou apagar o cache (F12 em Application).
 */

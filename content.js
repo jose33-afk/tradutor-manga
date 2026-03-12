@@ -30,12 +30,14 @@ const Utils = {
 
     this.config = configHardware[perfil];
   },
+
+  // A funcao de monitorar a url vai aqui.
 }
 
 const EventManager = {
   permissaoParaRodar: false,
 
-  async perguntarAoBackground() {
+  async _perguntarAoBackground() {
     try {
       const estaCorrendo = await chrome.runtime.sendMessage({ action: "VERIFICA_ESTADO_ABA" });
       return estaCorrendo === true;
@@ -46,10 +48,24 @@ const EventManager = {
 
   async init() {
     await Utils.getConfigHardware();
-    this.permissaoParaRodar = await this.perguntarAoBackground();
+    this.permissaoParaRodar = await this._perguntarAoBackground(); // 1.5
+    this.conexaoBackground();
+ 
+    
+  },
 
-    window.addEventListener('load', () => {
-      if (this.permissaoParaRodar) ScrollManager.executarDescidaPrincipal();
+  async conexaoBackground() {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'INICIAR_TRADUCAO') {
+        this.permissaoParaRodar = true;
+        //ScrollManager.executarDescidaPrincipal(); DESATIVADO PARA TESTES
+        sendResponse(); // 1.6
+      }
+
+      if (request.action === 'PARAR_TRADUCAO') {
+        this.permissaoParaRodar = false;
+        sendResponse(); 
+      }
     });
   },
 }
@@ -141,5 +157,6 @@ EventManager.init();
         mas e um metodo limitado ja que so funciona com '<img>' e outras tags.
   1.3 - o segundo alvo nao e o ALVO ensi e o proximo pai. 
   1.4 - o debounce e importante ele estar assim pra nao mexer com this.
-  1.5 - 
+  1.5 - para atualizar caso de F5
+  1.6 - confirmando o recebimento do background, senao ele reclama.
 */
