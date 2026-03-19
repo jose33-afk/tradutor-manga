@@ -41,11 +41,10 @@ const EventManager = {
     setInterval(async () => {
       if (location.href !== cacheUrl) {
         cacheUrl = location.href;
-    
-        if (EventManager.permissaoParaRodar) {
-          await Utils.esperar(1500);
-          //funcao de scrolling
-        }
+        // teste
+        console.log("[EventManager] 🛤️ Mudança de capítulo detectada no SPA.");
+        // teste
+        
       }
     }, 1000) // 1.7
   },
@@ -151,9 +150,7 @@ const ScrollManager = {
   async executarDescidaPrincipal() {
     //const { gerirPopup } = await Utils.importarModulo('popDescida.js');
     //let elementoScroll = await this._encontrarElementoComRetry(); nao ta com erro e que so funiona normal se chamar pelo EventManger
-    const { AvisoManager }= await Utils.importarModulo('avisoManager.js');
-    
-    
+   
     // if (elementoScroll) {
     //   gerirPopup('abrir');
     //   await Utils.esperar(Utils.config.scroll); // 1.5 

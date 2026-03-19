@@ -205,13 +205,16 @@ const InterfaceManager = {
 
     this.el.alertaErro.style.display = 'none';
     
-    if (origem) {
+    if (origem && !this.el.selectOrigem.disabled) {
       this.el.btnLigar.disabled = false;
       this.el.btnLigar.classList.remove('btn-desabilitado');
     
       if (!this.el.btnLigar.classList.contains('btn-rodando')) {
          this.el.btnLigar.className = 'btn-parado';
       }
+    } else {
+      this.el.btnLigar.disabled = true;
+      this.el.btnLigar.className = 'btn-desabilitado';
     }
     return true;
   },

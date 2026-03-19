@@ -88,7 +88,6 @@ export const AvisoManager = {
   verificarSecontinua(opcoes = {}) { 
     if (typeof opcoes !== 'object' || opcoes === null || Array.isArray(opcoes)) {
       opcoes = {};
-      console.log('ae')
     }
 
     const defaults = {
