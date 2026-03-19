@@ -30,12 +30,25 @@ const Utils = {
 
     this.config = configHardware[perfil];
   },
-
-  // A funcao de monitorar a url vai aqui.
 }
 
 const EventManager = {
   permissaoParaRodar: false,
+
+  _monitorarUlr() {
+    let cacheUrl = location.href;
+
+    setInterval(async () => {
+      if (location.href !== cacheUrl) {
+        cacheUrl = location.href;
+    
+        if (EventManager.permissaoParaRodar) {
+          await Utils.esperar(1500);
+          //funcao de scrolling
+        }
+      }
+    }, 1000) // 1.7
+  },
 
   async _perguntarAoBackground() {
     try {
@@ -50,8 +63,8 @@ const EventManager = {
     await Utils.getConfigHardware();
     this.permissaoParaRodar = await this._perguntarAoBackground(); // 1.5
     this.conexaoBackground();
- 
-    
+
+    this._monitorarUlr();
   },
 
   async conexaoBackground() {
@@ -86,6 +99,10 @@ const ScrollManager = {
       await Utils.esperar(retry);
     }
     return window;
+  },
+
+  _monitorarScroll() {
+
   },
   
   encontrarElementoDeScroll () {
@@ -132,20 +149,22 @@ const ScrollManager = {
   },
 
   async executarDescidaPrincipal() {
-    const { gerirPopup } = await Utils.importarModulo('popDescida.js');
-    
-    let elementoScroll = await this._encontrarElementoComRetry();
-    
+    //const { gerirPopup } = await Utils.importarModulo('popDescida.js');
+    //let elementoScroll = await this._encontrarElementoComRetry(); nao ta com erro e que so funiona normal se chamar pelo EventManger
+    const { AvisoManager }= await Utils.importarModulo('avisoManager.js');
+    const resp = await AvisoManager.verificarSecontinua();
+    console.log(resp)
     // if (elementoScroll) {
     //   gerirPopup('abrir');
-    //   await Utils.esperar(600) // 1.5 
+    //   await Utils.esperar(Utils.config.scroll); // 1.5 
       
-    //   const sucesso = await carregarPaginaManga(elementoScroll);
+    //   //const sucesso = await carregarPaginaManga(elementoScroll);
     // }
   },
 }
 
-EventManager.init();
+EventManager.init()
+ScrollManager.executarDescidaPrincipal()
 
 
 
@@ -159,4 +178,5 @@ EventManager.init();
   1.4 - o debounce e importante ele estar assim pra nao mexer com this.
   1.5 - para atualizar caso de F5
   1.6 - confirmando o recebimento do background, senao ele reclama.
+  1.7 - Ele checa a URL a cada 1 segundo (não pesa nada no navegador)
 */
