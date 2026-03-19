@@ -85,18 +85,33 @@ export const AvisoManager = {
     }
   },
 
-  verificarSecontinua() {
+  verificarSecontinua(opcoes = {}) { 
+    if (typeof opcoes !== 'object' || opcoes === null || Array.isArray(opcoes)) {
+      opcoes = {};
+      console.log('ae')
+    }
+
+    const defaults = {
+      titulo: 'Iniciar Varredura?',
+      mensagem: 'Deseja rolar a página e capturar os painéis deste capítulo agora?',
+      btnSim: 'Iniciar',
+      btnNao: 'Cancelar'
+    };
+
+    const { titulo, mensagem, btnSim, btnNao } = { ...defaults, ...opcoes };
+
     return new Promise((resolv) => {
       this._injetarCSS();
       const overlay = document.createElement('div');
       overlay.id = 'am-overlay';
+      
       overlay.innerHTML = `
         <div class="am-caixa">
-          <h3>Iniciar Varredura?</h3>
-          <p>Deseja rolar a página e capturar os painéis deste capítulo agora?</p>
+          <h3>${titulo}</h3>
+          <p>${mensagem}</p>
           <div class="am-botoes">
-            <button class="am-btn am-btn-sim" id="am-sim">Iniciar</button>
-            <button class="am-btn am-btn-nao" id="am-nao">Cancelar</button>
+            <button class="am-btn am-btn-sim" id="am-sim">${btnSim}</button>
+            <button class="am-btn am-btn-nao" id="am-nao">${btnNao}</button>
           </div>
         </div>
       `;
@@ -165,7 +180,7 @@ export const AvisoManager = {
               novosDados: { estaCorrendo: false }
             });
           } catch(e) {
-            
+
           }
         }
       }, tempo);
