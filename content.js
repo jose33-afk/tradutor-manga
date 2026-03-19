@@ -152,8 +152,8 @@ const ScrollManager = {
     //const { gerirPopup } = await Utils.importarModulo('popDescida.js');
     //let elementoScroll = await this._encontrarElementoComRetry(); nao ta com erro e que so funiona normal se chamar pelo EventManger
     const { AvisoManager }= await Utils.importarModulo('avisoManager.js');
-    const resp = await AvisoManager.verificarSecontinua();
-    console.log(resp)
+    AvisoManager.mostrarStatus('carregando', 'teste');
+    
     // if (elementoScroll) {
     //   gerirPopup('abrir');
     //   await Utils.esperar(Utils.config.scroll); // 1.5 

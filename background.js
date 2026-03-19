@@ -128,6 +128,19 @@ const BackgroundManager = {
       }
     });
   },
+
+  async _atualizarStorageDaAba(tabId, novosDados) {
+    const MAXTENTATIVAS = 3;
+
+    for (let tentativa = 1; tentativa < MAXTENTATIVAS; tentativa++) {
+      try {
+        await StorageManager.salvar(tabId, novosDados);
+        return;
+      } catch(e) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+  },
   
   init() {
     chrome.runtime.onStartup.addListener(() => this._faxinaGeral()); // 2.3
@@ -144,6 +157,10 @@ const BackgroundManager = {
       if (request.action === "VERIFICA_ESTADO_ABA") {
         this.verificarSeContinua(sender.tab.id, sendResponse);
         return true; // 2.2
+      }
+
+      if (request.action === "ATUALIZAR_STORAGE_ABA") {
+        this._atualizarStorageDaAba(sender.tab.id, request.novosDados);
       }
     });
   },
