@@ -32,22 +32,49 @@ const Utils = {
   },
 }
 
+const UrlMonitor = {
+  _intervaloId: null,
+  _cacheUrlLimpa: null,
+
+  _limparUlr(urlBruta) {
+    try {
+      if (urlBruta.includes('mangadex.org')) return urlBruta.replace(/\/\d+\/?$/, ''); // 1.8
+      return urlBruta;
+    } catch(e) {
+      return urlBruta;
+    }
+  },
+
+  init() {
+    if (this._intervaloId) clearInterval(this._intervaloId); // 1.9
+
+    this._cacheUrlLimpa = this._limparUlr(location.href);
+    
+    this._intervaloId = setInterval(() => {
+      const urlAtualLimpa = this._limparUlr(location.href);
+
+      if (urlAtualLimpa !== this._cacheUrlLimpa) {
+        this._cacheUrlLimpa = urlAtualLimpa;
+
+        EventManager.permissaoParaRodar = false;
+      
+        try {
+          chrome.runtime.sendMessage({
+            action: 'ATUALIZAR_STORAGE_ABA', 
+            novosDados: { 
+              ultimaUrl: urlAtualLimpa,
+              jaConfirmou: false,  
+              estaCorrendo: false  
+            }
+          });
+        } catch (e) {};
+      }
+    }, 1000);
+  }
+}
+
 const EventManager = {
   permissaoParaRodar: false,
-
-  _monitorarUlr() {
-    let cacheUrl = location.href;
-
-    setInterval(async () => {
-      if (location.href !== cacheUrl) {
-        cacheUrl = location.href;
-        // teste
-        console.log("[EventManager] 🛤️ Mudança de capítulo detectada no SPA.");
-        // teste
-        
-      }
-    }, 1000) // 1.7
-  },
 
   async _perguntarAoBackground() {
     try {
@@ -63,7 +90,7 @@ const EventManager = {
     this.permissaoParaRodar = await this._perguntarAoBackground(); // 1.5
     this.conexaoBackground();
 
-    this._monitorarUlr();
+    UrlMonitor.init();
   },
 
   async conexaoBackground() {
@@ -166,6 +193,7 @@ ScrollManager.executarDescidaPrincipal()
 
 
 
+
 /*
   1.1 - eu verifico para ter certeza.
   1.2 - nesse caso e melhor usar o tag pq a lista ja existe no DOM,
@@ -176,4 +204,7 @@ ScrollManager.executarDescidaPrincipal()
   1.5 - para atualizar caso de F5
   1.6 - confirmando o recebimento do background, senao ele reclama.
   1.7 - Ele checa a URL a cada 1 segundo (não pesa nada no navegador)
+  1.8 - MangaDex ultiliza um sisteminha que adiciona que fica mudando um numero no final da URL,
+        e toda vez que muda uma imagem rolando para baixo  meu programa detecta como se tivesse mudado de capitolo.
+  1.9 - Evita rodar dois monitores ao mesmo tempo se chamar a função duas vezes
 */
