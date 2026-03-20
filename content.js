@@ -89,6 +89,7 @@ const EventManager = {
     await Utils.getConfigHardware();
     this.permissaoParaRodar = await this._perguntarAoBackground(); // 1.5
     this.conexaoBackground();
+    await this._verificarEstadoPosF5();
 
     UrlMonitor.init();
   },
@@ -106,6 +107,32 @@ const EventManager = {
         sendResponse(); 
       }
     });
+  },
+
+  async _verificarEstadoPosF5() {
+    if (!this.permissaoParaRodar) return; 
+    const { AvisoManager } = await Utils.importarModulo('avisoManager.js');
+    
+    const querRetomar = await AvisoManager.verificarSecontinua({
+        titulo: 'Retomar Leitura?',
+        mensagem: 'A página recarregou. Deseja continuar a varredura deste capítulo?',
+        btnSim: 'Retomar',
+        btnNao: 'Parar'
+    });
+
+    if (querRetomar) {
+      this.permissaoParaRodar = true
+      // funcao de scroll.
+    } else {
+      this.permissaoParaRodar = false;
+
+      try {
+        chrome.runtime.sendMessage({
+            action: 'ATUALIZAR_STORAGE_ABA',
+            novosDados: { estaCorrendo: false }
+        });
+      } catch(e) {}
+    }
   },
 }
 
