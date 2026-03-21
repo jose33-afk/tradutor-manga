@@ -12,9 +12,12 @@ const Utils = {
     };
   },
 
-  async importarModulo(nomeArquivo) {
+  async importarModulo(nomeArquivo, nomeObj = null) {
     const caminho = chrome.runtime.getURL(nomeArquivo);
-    return await import(caminho);
+    const modulo = await import(caminho);
+
+    if (nomeObj) return modulo[nomeObj];
+    return modulo;
   },
 
   async getConfigHardware() {
@@ -23,9 +26,9 @@ const Utils = {
     
     const configHardware = {
       // Adicionamos o 'usarLotes' para você usar na sua futura refatoração(alterar depois o mandar por lotes, aquele que tinha um comentario de performance)
-      ULTRA:  { scroll: 450, retry: 300, tentativas: 40, debounceWait: 200, usarLotes: false }, 
-      NORMAL: { scroll: 800, retry: 500, tentativas: 30, debounceWait: 300, usarLotes: true }, 
-      LOW:    { scroll: 1500, retry: 1000, tentativas: 20, debounceWait: 600, usarLotes: true } 
+      ULTRA:  { scroll: 250, retry: 300, tentativas: 40, debounceWait: 800, usarLotes: false }, 
+      NORMAL: { scroll: 400, retry: 500, tentativas: 30, debounceWait: 1200, usarLotes: true }, 
+      LOW:    { scroll: 750, retry: 1000, tentativas: 20, debounceWait: 1400, usarLotes: true } 
     };
 
     this.config = configHardware[perfil];
@@ -98,7 +101,7 @@ const EventManager = {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === 'INICIAR_TRADUCAO') {
         this.permissaoParaRodar = true;
-        //ScrollManager.executarDescidaPrincipal(); DESATIVADO PARA TESTES
+        ScrollManager.executarDescidaPrincipal();
         sendResponse(); // 1.6
       }
 
@@ -109,11 +112,11 @@ const EventManager = {
     });
   },
 
-  async _verificarEstadoPosF5() {
+  async _verificarEstadoPosF5() { // 2.0
     if (!this.permissaoParaRodar) return; 
-    const { AvisoManager } = await Utils.importarModulo('avisoManager.js');
+    const Aviso = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
     
-    const querRetomar = await AvisoManager.verificarSecontinua({
+    const querRetomar = await Aviso.verificarSecontinua({
         titulo: 'Retomar Leitura?',
         mensagem: 'A página recarregou. Deseja continuar a varredura deste capítulo?',
         btnSim: 'Retomar',
@@ -122,7 +125,7 @@ const EventManager = {
 
     if (querRetomar) {
       this.permissaoParaRodar = true
-      // funcao de scroll.
+      ScrollManager.executarDescidaPrincipal();
     } else {
       this.permissaoParaRodar = false;
 
@@ -137,11 +140,32 @@ const EventManager = {
 }
 
 const ScrollManager = {
+  _AVISOS: null,
+
   _chegouAoFim (scroller) {
     const total = scroller.scrollHeight || document.documentElement.scrollHeight;
     const visivel = scroller === window ? window.innerHeight : scroller.clientHeight;
     const atual = scroller === window ? window.scrollY : scroller.scrollTop;
     return atual + visivel >= total - 100;
+  },
+
+  async scrollSeguro(element) {
+    return new Promise((resolve) => {
+      const tempoAnimacao = Utils.config.scroll;
+      
+      const alvo = (element === document.documentElement || element === document.body || !element) 
+                 ? window 
+                 : element;
+
+      requestAnimationFrame(() => {
+        alvo.scrollBy({
+          top: window.innerHeight * 0.8, 
+          behavior: 'auto' 
+        });
+        
+        setTimeout(resolve, tempoAnimacao); 
+      });
+    });
   },
 
   async _encontrarElementoComRetry() { // 30 === 15s
@@ -154,10 +178,6 @@ const ScrollManager = {
     return window;
   },
 
-  _monitorarScroll() {
-
-  },
-  
   encontrarElementoDeScroll () {
     const html = document.documentElement;
     const body = document.body;
@@ -197,25 +217,108 @@ const ScrollManager = {
     return window;
   },
 
-  async carregarPaginaManga(scroller) {
+  async _executarAutoScroll(scroller, estado, limparEvento) {
+    let alturaAnterior = this._getAltura(scroller);
+    let tentativasSemMudanca = 0;
+    const LIMITE_TENTATIVAS = 3;
 
+    while (tentativasSemMudanca < LIMITE_TENTATIVAS) { // 2.6
+      if (estado.finished) return;
+      if (!EventManager.permissaoParaRodar) return limparEvento(false); // 2.4 | 2.5
+
+      await this.scrollSeguro(scroller);
+      await Utils.esperar(Utils.config.retry);
+
+      if (estado.finished) return;
+
+      if (this._chegouAoFim(scroller)) {
+        let alturaAtual = this._getAltura(scroller);
+        if (alturaAtual > alturaAnterior) {
+          alturaAnterior = alturaAtual;
+          tentativasSemMudanca = 0;
+        } else { tentativasSemMudanca++ }
+      }
+    }
+
+    if (!estado.finished) limparEvento(this._chegouAoFim(scroller));
   },
 
-  async executarDescidaPrincipal() {
-    //const { gerirPopup } = await Utils.importarModulo('popDescida.js');
-    //let elementoScroll = await this._encontrarElementoComRetry(); nao ta com erro e que so funiona normal se chamar pelo EventManger
-   
-    // if (elementoScroll) {
-    //   gerirPopup('abrir');
-    //   await Utils.esperar(Utils.config.scroll); // 1.5 
+  _getAltura(scroller) {
+    return scroller.scrollHeight || document.documentElement.scrollHeight;
+  },
+
+  carregarPaginaManga(scroller) {
+    return new Promise((resolve) => {
+      const estado = { // 2.3
+        finished: false,
+        verificandoFalsoFim: false
+      };
       
-    //   //const sucesso = await carregarPaginaManga(elementoScroll);
-    // }
+      const alvoEvento = (scroller === document.documentElement || scroller === document.body || !scroller) 
+        ? window 
+        : scroller;
+
+      const limparEvento = (resultado) => {
+        estado.finished = true;
+        alvoEvento.removeEventListener('scroll', monitorManual);
+        resolve(resultado);
+      };
+
+      const monitorManual = Utils.debounce(async () => {
+        //Testes
+        console.log('aqii')
+        console.log('Event:', EventManager.permissaoParaRodar, 'finished:', estado.finished, 'falsoFim:', estado.verificandoFalsoFim)
+        //Testes
+
+        if (!EventManager.permissaoParaRodar || estado.finished || estado.verificandoFalsoFim) return;
+          //Testes
+          console.log('passou')
+          console.log(this._chegouAoFim(scroller))
+          //Testes
+          if (this._chegouAoFim(scroller)) {
+            //Testes
+            console.log('dentro do chegou ')
+            //Testes
+            estado.verificandoFalsoFim = true; // 2.2
+            const alturaAntes = this._getAltura(scroller);
+          
+            await Utils.esperar(Utils.config.retry);
+
+            if (estado.finished) return;
+
+            const alturaDepois = this._getAltura(scroller);
+
+            console.log('antes', alturaAntes, 'alturadepois', alturaDepois)
+
+            if (this._chegouAoFim(scroller) && alturaDepois <= alturaAntes) {
+              console.log("[Monitor] Usuário chegou no fundo real. Interrompendo bot...");
+              limparEvento(true);
+            } else{ 
+              estado.verificandoFalsoFim = false
+              console.log('falso Fundo')
+            };
+
+        }
+      }, Utils.config.debounceWait);
+
+      alvoEvento.addEventListener('scroll', monitorManual);
+
+      this._executarAutoScroll(scroller, estado, limparEvento);
+    });
+  },
+  
+  async executarDescidaPrincipal() {
+    this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
+    let elementoScroll = await this._encontrarElementoComRetry(); 
+    
+    const sucesso = await this.carregarPaginaManga(elementoScroll);
+    console.log(sucesso)
   },
 }
 
-EventManager.init()
-ScrollManager.executarDescidaPrincipal()
+EventManager.init();
+
+
 
 
 
@@ -234,4 +337,14 @@ ScrollManager.executarDescidaPrincipal()
   1.8 - MangaDex ultiliza um sisteminha que adiciona que fica mudando um numero no final da URL,
         e toda vez que muda uma imagem rolando para baixo  meu programa detecta como se tivesse mudado de capitolo.
   1.9 - Evita rodar dois monitores ao mesmo tempo se chamar a função duas vezes
+  2.0 - Nao precisa de nenhum codigo monitorando, pos quando se da F5 o content e recriado.
+  2.1 - Trava de segurança
+  2.2 - Isso aqui e uma trava pra nao ficar mais de uma funcao na memoria por vez, por causa do await que e maior que o time do debonce.
+  2.3 - nao da pra passar bloano por parametro pq senao ele pega uma copia e nao o original, pra monitorar o real de fato usamos obj
+  2.4 - aqui e como se eu fisse assim return 2+2 e ele retornaria 4 e a mesma coisa ele chama a funca e retorna o resultado dela
+        com ela n retorna nada o retorn e undefied mas n tem problema. o bom e que ela encerra a funcao msm estando dentro de um while.
+  2.5 - Ele esta aqui por preucacao basicamente se apertar em parar o monitor n se fecha pq n tem mais scroll mas scroll e para limpar memoria 
+        encerramos la no while que n morre de primeira se desligar a extensao.
+  2.6 - Esse 3 tentativas fica de emergencia mesmo que o monitorar na maioria das vezes funcione... ou caso o monitor seja apressado demais o AutoScroll chama 
+        o monitor de volta
 */
