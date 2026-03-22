@@ -1,4 +1,9 @@
-// UTILS - Módulo Auxiliar Content
+const PipelineManga = {
+  async iniciarTraducao() {
+
+  }
+}
+
 const Utils = {
   config: null,
 
@@ -247,6 +252,12 @@ const ScrollManager = {
     return scroller.scrollHeight || document.documentElement.scrollHeight;
   },
 
+  _getAlvoEvento(scroller) {
+    return (scroller === document.documentElement || scroller === document.body || !scroller) 
+      ? window 
+      : scroller;
+  },
+
   carregarPaginaManga(scroller) {
     return new Promise((resolve) => {
       const estado = { // 2.3
@@ -254,9 +265,7 @@ const ScrollManager = {
         verificandoFalsoFim: false
       };
       
-      const alvoEvento = (scroller === document.documentElement || scroller === document.body || !scroller) 
-        ? window 
-        : scroller;
+      const alvoEvento = this._getAlvoEvento(scroller);
 
       const limparEvento = (resultado) => {
         estado.finished = true;
@@ -265,20 +274,8 @@ const ScrollManager = {
       };
 
       const monitorManual = Utils.debounce(async () => {
-        //Testes
-        console.log('aqii')
-        console.log('Event:', EventManager.permissaoParaRodar, 'finished:', estado.finished, 'falsoFim:', estado.verificandoFalsoFim)
-        //Testes
-
         if (!EventManager.permissaoParaRodar || estado.finished || estado.verificandoFalsoFim) return;
-          //Testes
-          console.log('passou')
-          console.log(this._chegouAoFim(scroller))
-          //Testes
           if (this._chegouAoFim(scroller)) {
-            //Testes
-            console.log('dentro do chegou ')
-            //Testes
             estado.verificandoFalsoFim = true; // 2.2
             const alturaAntes = this._getAltura(scroller);
           
@@ -288,16 +285,8 @@ const ScrollManager = {
 
             const alturaDepois = this._getAltura(scroller);
 
-            console.log('antes', alturaAntes, 'alturadepois', alturaDepois)
-
-            if (this._chegouAoFim(scroller) && alturaDepois <= alturaAntes) {
-              console.log("[Monitor] Usuário chegou no fundo real. Interrompendo bot...");
-              limparEvento(true);
-            } else{ 
-              estado.verificandoFalsoFim = false
-              console.log('falso Fundo')
-            };
-
+            if (this._chegouAoFim(scroller) && alturaDepois <= alturaAntes) limparEvento(true);
+            else estado.verificandoFalsoFim = false;
         }
       }, Utils.config.debounceWait);
 
@@ -310,9 +299,25 @@ const ScrollManager = {
   async executarDescidaPrincipal() {
     this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
     let elementoScroll = await this._encontrarElementoComRetry(); 
-    
     const sucesso = await this.carregarPaginaManga(elementoScroll);
-    console.log(sucesso)
+    
+    if (sucesso) {
+      this._AVISOS.mostrarStatus('subindo');
+
+      const alvoEvento = this._getAlvoEvento(elementoScroll);
+      alvoEvento.scrollTo({ top: 0, behavior: 'auto' });
+
+      await Utils.esperar(2000);
+      this._AVISOS.mostrarStatus('fechar');
+
+      this._AVISOS = null;
+      // ImageScanner. DESATIVADO PARA TESTES.
+    } else { 
+      this._AVISOS.mostrarStatus('erro', 'Falha ao percorrer o mangá.'); 
+      this._AVISOS = null;
+    }
+
+    return sucesso;
   },
 }
 
