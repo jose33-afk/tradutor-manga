@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Manga Reader Translator",
   "version": "1.0",
-  "description": "Deteta e traduz balões de mangá em tempo real.",
+  "description": "Leia qualquer mangá no seu idioma! O Manga Reader Translator detecta textos em imagens instantaneamente e sobrepõe a tradução de forma fluida. Compatível com os principais leitores online.",
   "permissions": [
     "storage", 
     "unlimitedStorage",
@@ -22,12 +22,12 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["storageManager.js", "filtro.js", "content.js"]
+      "js": ["storageManager.js", "content.js"]
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["avisoManager.js"],
+      "resources": ["filtro.js", "avisoManager.js"],
       "matches": ["<all_urls>"]
     }
   ]

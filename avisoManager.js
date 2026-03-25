@@ -152,7 +152,7 @@ export const AvisoManager = {
     const configs = {
       'descendo':   { icone: ICONES.descendo, texto: 'Mapeando páginas...', anim: 'am-anim-descendo' },
       'subindo': { icone: ICONES.subindo,  texto: 'Retornando ao topo...', anim: 'am-anim-subindo' },
-      'fechar':  { icone: ICONES.sucesso,  texto: 'Leitura concluída!', classeExtra: 'estado-sucesso' },
+      'fechar':  { icone: ICONES.sucesso,  texto: textoCustomizado || 'Leitura concluída!', classeExtra: 'estado-sucesso' },
       'erro':    { icone: ICONES.erro,     texto: textoCustomizado || 'Processo interrompido!', classeExtra: 'estado-erro' },
       'carregando': { icone: ICONES.spinner, texto: textoCustomizado || 'Processando...', anim: 'am-anim-spin' }
     };

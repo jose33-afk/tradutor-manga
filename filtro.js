@@ -1,4 +1,4 @@
-async function filtroImg(element, url, index, estado, posicoes) { // 1.1 
+export async function filtroImg(element, url, index, estado, posicoes) { // 1.1 
   const LIMITE_ERROS = 4;
   let dataBlob;
   
@@ -25,8 +25,6 @@ async function filtroImg(element, url, index, estado, posicoes) { // 1.1
     return { index, erro: e.message };
   };
 };
-
-globalThis.filtroImg = filtroImg;
 
 async function tentarFetch(entrada, estado) {
   if (entrada instanceof Blob) return entrada; // 1.5
@@ -103,7 +101,7 @@ const ImageService = {
   },
 };
 
-/*
+/*depois 
   1.1 - O IMPORT normal nao funciona, mas o EXPORT e necessario.
   1.2 - Tenta o fetch; se der falha (CORS ou erro de rede), cai no canvas.
   1.3 - index e para saber quais imagens falharam.

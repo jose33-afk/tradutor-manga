@@ -1,7 +1,32 @@
 const PipelineManga = {
-  async iniciarTraducao() {
+  estado: {
+    scrollConcluido: false,
+    imagensMapeadas: false,
+    enviarProBackground: false, 
+  },
 
+  imagensCache: [],
+
+  //FUTURA FUNCAO PARA VERIFICAR SE O CAPITOLO JA EXISTE NO BANCO. location.href 
+  // So mandar a ulr e no background agente busca normalmente na futura funcao.
+
+  async executarTrabalho() {
+    if (!EventManager.permissaoParaRodar) return;
+
+    if (!this.estado.scrollConcluido) {
+      const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
+
+      if (!scrollSucesso) return; 
+      this.estado.scrollConcluido = true; 
+    }
+
+    if (!this.estado.imagensMapeadas) {
+      console.log("[Pipeline] Identificado: Falta mapear as imagens.");
+
+    }
   }
+
+
 }
 
 const Utils = {
@@ -30,14 +55,59 @@ const Utils = {
     const perfil = dadosHardware?.perfil || 'NORMAL';
     
     const configHardware = {
-      // Adicionamos o 'usarLotes' para você usar na sua futura refatoração(alterar depois o mandar por lotes, aquele que tinha um comentario de performance)
       ULTRA:  { scroll: 250, retry: 300, tentativas: 40, debounceWait: 800, usarLotes: false }, 
-      NORMAL: { scroll: 400, retry: 500, tentativas: 30, debounceWait: 1200, usarLotes: true }, 
-      LOW:    { scroll: 750, retry: 1000, tentativas: 20, debounceWait: 1400, usarLotes: true } 
+      NORMAL: { scroll: 400, retry: 500, tentativas: 30, debounceWait: 1200, usarLotes: true, taxaLote: 0.15 }, 
+      LOW:    { scroll: 750, retry: 1000, tentativas: 20, debounceWait: 1400, usarLotes: true, taxaLote: 0.08 } 
     };
 
     this.config = configHardware[perfil];
   },
+}
+
+const ImageScanner = {
+  async processar() {
+    //if (!EventManager.permissaoParaRodar) return; DESATIVADO PARA TESTES
+    const _AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
+    
+    const scrollYAtual = window.scrollY;
+    const scrollXAtual = window.scrollX;
+    const images = document.getElementsByTagName('img');
+
+    const imgsFiltradas = Array.from(images).reduce((acumulador, img) => {
+      if (img.naturalHeight > img.naturalWidth && img.naturalWidth > 450) {
+        const rect = img.getBoundingClientRect();
+        acumulador.push({
+          elemento: img,
+          poscicoes: {
+            topo: rect.top + scrollYAtual,
+            esquerda: rect.left + scrollXAtual,
+            larguraTela: rect.width,
+            alturaTela: rect.height,
+            larguraReal: img.naturalWidth,
+            alturaReal: img.naturalHeight
+          }
+        });
+      }
+      return acumulador;
+    }, []);
+
+    _AVISOS.mostrarStatus('carregando', `Processando ${imgsFiltradas.length} imagens...`);
+
+    if (imgsFiltradas.length === 0) {
+      _AVISOS.mostrarStatus('erro', 'Nenhuma imagem válida encontrada no site.');
+      return;
+    }
+
+    const filtroImg = await Utils.importarModulo('filtro.js', 'filtroImg');
+    const estadoFetch = { erros: 0 };
+
+    console.log('filtro', imgsFiltradas)
+    
+
+
+    
+    
+  }
 }
 
 const UrlMonitor = {
@@ -106,7 +176,7 @@ const EventManager = {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === 'INICIAR_TRADUCAO') {
         this.permissaoParaRodar = true;
-        ScrollManager.executarDescidaPrincipal();
+        PipelineManga.executarTrabalho();
         sendResponse(); // 1.6
       }
 
@@ -130,7 +200,7 @@ const EventManager = {
 
     if (querRetomar) {
       this.permissaoParaRodar = true
-      ScrollManager.executarDescidaPrincipal();
+      PipelineManga.executarTrabalho();
     } else {
       this.permissaoParaRodar = false;
 
@@ -158,9 +228,7 @@ const ScrollManager = {
     return new Promise((resolve) => {
       const tempoAnimacao = Utils.config.scroll;
       
-      const alvo = (element === document.documentElement || element === document.body || !element) 
-                 ? window 
-                 : element;
+      const alvo = this._getAlvoEvento(element);
 
       requestAnimationFrame(() => {
         alvo.scrollBy({
@@ -218,7 +286,7 @@ const ScrollManager = {
       }
     };
 
-    console.log("Nenhum container específico achado, usando Window.");
+    console.warn("Nenhum container específico achado, usando Window.");
     return window;
   },
 
@@ -311,7 +379,7 @@ const ScrollManager = {
       this._AVISOS.mostrarStatus('fechar');
 
       this._AVISOS = null;
-      // ImageScanner. DESATIVADO PARA TESTES.
+      //PipelineManga.executarTrabalho();
     } else { 
       this._AVISOS.mostrarStatus('erro', 'Falha ao percorrer o mangá.'); 
       this._AVISOS = null;
@@ -323,10 +391,7 @@ const ScrollManager = {
 
 EventManager.init();
 
-
-
-
-
+setTimeout(() => ImageScanner.processar(), 2000);
 
 
 /*
