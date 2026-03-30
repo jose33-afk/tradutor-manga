@@ -3,15 +3,14 @@ const PipelineManga = {
     scrollConcluido: false,
     imagensMapeadas: false,
     enviarProBackground: false, 
+    capituloFinalizado: false,
   },
 
   imagensCache: [],
 
-  //FUTURA FUNCAO PARA VERIFICAR SE O CAPITOLO JA EXISTE NO BANCO. location.href 
-  // So mandar a ulr e no background agente busca normalmente na futura funcao.
-
   async executarTrabalho() {
     if (!EventManager.permissaoParaRodar) return;
+    if (!this.estado.capituloFinalizado) return;
 
     if (!this.estado.scrollConcluido) {
       const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
@@ -24,6 +23,8 @@ const PipelineManga = {
       console.log("[Pipeline] Identificado: Falta mapear as imagens.");
 
     }
+
+    this.estado.capituloFinalizado = true; // 2.9
   }
 
 
@@ -65,20 +66,22 @@ const Utils = {
 }
 
 const ImageScanner = {
-  async processar() {
-    //if (!EventManager.permissaoParaRodar) return; DESATIVADO PARA TESTES
-    const _AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
-    
+  _AVISOS: null,
+  _Filter: null,
+  _estadoFetch: null, // 2.7
+  _totalImagens: 0,
+
+  extrairImagensDoDOM() {
     const scrollYAtual = window.scrollY;
     const scrollXAtual = window.scrollX;
     const images = document.getElementsByTagName('img');
 
-    const imgsFiltradas = Array.from(images).reduce((acumulador, img) => {
+    return Array.from(images).reduce((acumulador, img) => {
       if (img.naturalHeight > img.naturalWidth && img.naturalWidth > 450) {
         const rect = img.getBoundingClientRect();
         acumulador.push({
           elemento: img,
-          poscicoes: {
+          posicoes: {
             topo: rect.top + scrollYAtual,
             esquerda: rect.left + scrollXAtual,
             larguraTela: rect.width,
@@ -90,24 +93,62 @@ const ImageScanner = {
       }
       return acumulador;
     }, []);
+  },
 
-    _AVISOS.mostrarStatus('carregando', `Processando ${imgsFiltradas.length} imagens...`);
+  async _prepararDespacharLote(lote, indexInicial, isTestDrive) {
+    const resultados = await Promise.all(
+      lote.map(async (item, i) => { 
+        try {
+          return await this._Filter(
+            item.elemento,
+            item.elemento.src,
+            indexInicial + i, // 2.8
+            this._estadoFetch,
+            item.posicoes
+          );
+        } catch (e) {
+          return { index: indexInicial + i, erro: e.message || "Erro inesperado" }; // 3.0
+        }
+      })
+    )
+    console.log(resultados)
+  }, 
 
-    if (imgsFiltradas.length === 0) {
-      _AVISOS.mostrarStatus('erro', 'Nenhuma imagem válida encontrada no site.');
-      return;
+  async _orquestrarVarredura(imgsFiltradas) {
+    const tamanhoTesteDrive = Math.min(4, this._totalImagens);
+    const loteTeste = imgsFiltradas.slice(0, tamanhoTesteDrive);
+    
+    const testeSucesso = await this._prepararDespacharLote(loteTeste, 1, true);
+  },  
+
+  async processar() {
+    //if (!EventManager.permissaoParaRodar) return; DESATIVADO PARA TESTES
+
+    try {
+      if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager'); 
+      if (!this._Filter) this._Filter = await Utils.importarModulo('filtro.js', 'filtroImg');
+
+      const imgsFiltradas = this.extrairImagensDoDOM();
+      this._totalImagens = imgsFiltradas.length;
+      this._estadoFetch = { erros: 0 };
+
+      if (this._totalImagens === 0) {
+        this._AVISOS.mostrarStatus('erro', 'Nenhuma imagem válida encontrada no site.');
+        return;
+      }
+      this._AVISOS.mostrarStatus('carregando', `Processando ${this._totalImagens} imagens...`);
+
+      await this._orquestrarVarredura(imgsFiltradas);
+      
+    } catch (e) {
+      if (this._AVISOS) this._AVISOS.mostrarStatus('erro', 'Falha crítica no processamento.');
+
+    } finally {
+      this._Filter = null;
+      this._estadoFetch = null;
+      this._totalImagens = 0;
     }
-
-    const filtroImg = await Utils.importarModulo('filtro.js', 'filtroImg');
-    const estadoFetch = { erros: 0 };
-
-    console.log('filtro', imgsFiltradas)
-    
-
-
-    
-    
-  }
+  },
 }
 
 const UrlMonitor = {
@@ -390,7 +431,7 @@ const ScrollManager = {
 }
 
 EventManager.init();
-
+//ImageScanner.processar()
 setTimeout(() => ImageScanner.processar(), 2000);
 
 
@@ -417,4 +458,11 @@ setTimeout(() => ImageScanner.processar(), 2000);
         encerramos la no while que n morre de primeira se desligar a extensao.
   2.6 - Esse 3 tentativas fica de emergencia mesmo que o monitorar na maioria das vezes funcione... ou caso o monitor seja apressado demais o AutoScroll chama 
         o monitor de volta
+  2.7 - Apenas vivos durante o processar, apagados no final
+  2.8 - O calculo do index nunca da erro pq o indexInicial nunca muda ex:
+        5 + 0 + 5 + 1 + 5 + 2 + 5 + 3 + 5 + 4
+        index: 5, 6, 7, 8, 9 
+        eu nao estou somando 5 + 6 + 7 + 8 + 9.
+  2.9 - serve pra dizer que o capitolo ja foi processado.
+  3.0 - Por seguranca pode ocorrer algum erro em uma img especifica e o promisse.all excluir todas a que deram certo
 */

@@ -6,7 +6,7 @@ export async function filtroImg(element, url, index, estado, posicoes) { // 1.1
 
   if (!dataBlob) {
     let response = await ImageService.capturarImgemDaTela(element);
-    if (!response) return null; // 1.3
+    if (!response) return { index, erro: "Falha total: Fetch bloqueado e Canvas vazio." }; // 1.3
     dataBlob = response;
   } else {
     dataBlob = (await ImageService.comprimirBlob(dataBlob)) || dataBlob; // 1.4
