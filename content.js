@@ -69,7 +69,12 @@ const ImageScanner = {
   _AVISOS: null,
   _Filter: null,
   _estadoFetch: null, // 2.7
-  _totalImagens: 0,
+  _estado: {
+    totalFalhas: 0,
+    limiteCritico: 0,
+  },
+   
+  
 
   extrairImagensDoDOM() {
     const scrollYAtual = window.scrollY;
@@ -110,8 +115,28 @@ const ImageScanner = {
           return { index: indexInicial + i, erro: e.message || "Erro inesperado" }; // 3.0
         }
       })
-    )
-    console.log(resultados)
+    );
+
+    const sucessos = resultados.filter(item => item?.imageDataUrl);
+    const falhas = resultados.filter(item => !item?.imageDataUrl);
+    
+    if (isTestDrive && sucessos.length === 0 && lote.length > 0) {
+      this._AVISOS.mostrarStatus('erro', 'Falha ao processar imagens. Bloqueio detectado.');
+      return false;
+    }
+
+    // if (falhas.length > 0) {
+    //   this._estado.totalFalhas += falhas.length;
+
+    //   if (this._estado.totalFalhas > this._estado.limiteCritico) {
+    //    this._AVISOS.verificarSecontinua({
+    //       titulo: 'Alerta de Download',
+    //       mensagem: `Muitas imagens falharam (${this._estado.totalFalhas} de ${this._totalImagens}). O site pode estar bloqueando a extensão ou as imagens são anúncios.\n\nDeseja continuar baixando assim mesmo?`,
+    //       btnSim: 'Tentar novamente',
+    //       btnNao: 'Parar'
+    //     });
+    //   }
+    // }
   }, 
 
   async _orquestrarVarredura(imgsFiltradas) {
@@ -134,15 +159,17 @@ const ImageScanner = {
 
       if (this._totalImagens === 0) {
         this._AVISOS.mostrarStatus('erro', 'Nenhuma imagem válida encontrada no site.');
-        return;
+        return false;
       }
+
+      this._estado.limiteCritico = Math.max(10, Math.ceil(this._totalImagens * 0.25));
       this._AVISOS.mostrarStatus('carregando', `Processando ${this._totalImagens} imagens...`);
 
-      await this._orquestrarVarredura(imgsFiltradas);
-      
+      /*const sucessoVarredura =*/ await this._orquestrarVarredura(imgsFiltradas);
+      //return sucessoVarredura !== false;
     } catch (e) {
       if (this._AVISOS) this._AVISOS.mostrarStatus('erro', 'Falha crítica no processamento.');
-
+      return false;
     } finally {
       this._Filter = null;
       this._estadoFetch = null;
@@ -246,7 +273,7 @@ const EventManager = {
       this.permissaoParaRodar = false;
 
       try {
-        chrome.runtime.sendMessage({
+        chrome.runtime.sendMessage({ // TROCAR PELA FUNCAO PARAOPERACAOGLOBAL QUE VOU FAZER
             action: 'ATUALIZAR_STORAGE_ABA',
             novosDados: { estaCorrendo: false }
         });
@@ -432,7 +459,7 @@ const ScrollManager = {
 
 EventManager.init();
 //ImageScanner.processar()
-setTimeout(() => ImageScanner.processar(), 2000);
+setTimeout(() => ImageScanner.processar(), 5000);
 
 
 /*
