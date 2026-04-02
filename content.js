@@ -15,7 +15,11 @@ const PipelineManga = {
     if (!this.estado.scrollConcluido) {
       const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
 
-      if (!scrollSucesso) return; 
+      if (!scrollSucesso) {
+        EventManager.pararOperacaoGlobal();
+        return;
+      } 
+
       this.estado.scrollConcluido = true; 
     }
 
@@ -69,13 +73,12 @@ const ImageScanner = {
   _AVISOS: null,
   _Filter: null,
   _estadoFetch: null, // 2.7
+  _totalImagens: 0,
   _estado: {
     totalFalhas: 0,
     limiteCritico: 0,
   },
    
-  
-
   extrairImagensDoDOM() {
     const scrollYAtual = window.scrollY;
     const scrollXAtual = window.scrollX;
@@ -117,7 +120,7 @@ const ImageScanner = {
       })
     );
 
-    const sucessos = resultados.filter(item => item?.imageDataUrl);
+    const sucessos = []//resultados.filter(item => item?.imageDataUrl);
     const falhas = resultados.filter(item => !item?.imageDataUrl);
     
     if (isTestDrive && sucessos.length === 0 && lote.length > 0) {
@@ -125,30 +128,48 @@ const ImageScanner = {
       return false;
     }
 
-    // if (falhas.length > 0) {
-    //   this._estado.totalFalhas += falhas.length;
+    // if (falhas.length > 0) { Tive um ideia melhor, vou implementala quando terminar de entender tudo.
+    //   this._estado.totalFalhas += falhas.length; 
 
     //   if (this._estado.totalFalhas > this._estado.limiteCritico) {
-    //    this._AVISOS.verificarSecontinua({
+    //    const continuar = this._AVISOS.verificarSecontinua({
     //       titulo: 'Alerta de Download',
     //       mensagem: `Muitas imagens falharam (${this._estado.totalFalhas} de ${this._totalImagens}). O site pode estar bloqueando a extensão ou as imagens são anúncios.\n\nDeseja continuar baixando assim mesmo?`,
     //       btnSim: 'Tentar novamente',
     //       btnNao: 'Parar'
     //     });
+
+    //     if (!continuar) return false;
+    //     this._estado.totalFalhas = 0;
     //   }
     // }
+
+    if (sucessos.length > 0) {
+      try {
+        const isUltimoLote = (indexInicial + lote.length - 1) >= this._totalImagens; // 3.1 | 3.2
+        //testes
+        console.log('valor do calculo:', indexInicial + lote.length - 1);
+        console.log('ultimo lote:', isUltimoLote);
+        console.log('Total de imgs:', this._totalImagens)
+        //testes
+        //await this._enviarParaBackground(sucessos, isUltimoLote); funcao ainda n feita.
+      } catch(e) {
+        console.error("[prepararDespacharLote] Falha de comunicação:", e); //Vou remover depois.
+        return false;
+      }
+    }
   }, 
 
   async _orquestrarVarredura(imgsFiltradas) {
     const tamanhoTesteDrive = Math.min(4, this._totalImagens);
     const loteTeste = imgsFiltradas.slice(0, tamanhoTesteDrive);
     
-    const testeSucesso = await this._prepararDespacharLote(loteTeste, 1, true);
+    const testeSucesso = await this._prepararDespacharLote(loteTeste, 33, true);
   },  
 
   async processar() {
     //if (!EventManager.permissaoParaRodar) return; DESATIVADO PARA TESTES
-
+    
     try {
       if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager'); 
       if (!this._Filter) this._Filter = await Utils.importarModulo('filtro.js', 'filtroImg');
@@ -162,7 +183,7 @@ const ImageScanner = {
         return false;
       }
 
-      this._estado.limiteCritico = Math.max(10, Math.ceil(this._totalImagens * 0.25));
+      //this._estado.limiteCritico = Math.max(10, Math.ceil(this._totalImagens * 0.25)); Tive um ideia melhor 
       this._AVISOS.mostrarStatus('carregando', `Processando ${this._totalImagens} imagens...`);
 
       /*const sucessoVarredura =*/ await this._orquestrarVarredura(imgsFiltradas);
@@ -222,6 +243,19 @@ const UrlMonitor = {
 const EventManager = {
   permissaoParaRodar: false,
 
+  pararOperacaoGlobal() {
+    this.permissaoParaRodar = false;
+
+    try {
+      chrome.runtime.sendMessage({ 
+          action: 'ATUALIZAR_STORAGE_ABA',
+          novosDados: { estaCorrendo: false }
+      });
+    } catch(e) {
+      console.warn("Background inacessível no momento do desligamento.");
+    }
+  },
+
   async _perguntarAoBackground() {
     try {
       const estaCorrendo = await chrome.runtime.sendMessage({ action: "VERIFICA_ESTADO_ABA" });
@@ -270,14 +304,7 @@ const EventManager = {
       this.permissaoParaRodar = true
       PipelineManga.executarTrabalho();
     } else {
-      this.permissaoParaRodar = false;
-
-      try {
-        chrome.runtime.sendMessage({ // TROCAR PELA FUNCAO PARAOPERACAOGLOBAL QUE VOU FAZER
-            action: 'ATUALIZAR_STORAGE_ABA',
-            novosDados: { estaCorrendo: false }
-        });
-      } catch(e) {}
+      this.pararOperacaoGlobal();
     }
   },
 }
@@ -492,4 +519,7 @@ setTimeout(() => ImageScanner.processar(), 5000);
         eu nao estou somando 5 + 6 + 7 + 8 + 9.
   2.9 - serve pra dizer que o capitolo ja foi processado.
   3.0 - Por seguranca pode ocorrer algum erro em uma img especifica e o promisse.all excluir todas a que deram certo
+  3.1 - o -1 e aquela coisa de 0 contar entao seria 0, 1, 2, 3, e n 1, 2, 3, 4. O 
+        O calculo e simples eu pego o indexInicial e somo com o tamanho do lote atual e vejo se atinje o teto se sim
+        Entao e o ultimo senao nao e o ultimo. 
 */
