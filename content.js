@@ -1,35 +1,80 @@
 const PipelineManga = {
+  _AVISOS: null, // Eu estava aqui, tentando ver se compensava deixar isso grobal ou local como esta.
   estado: {
-    scrollConcluido: false,
+    scrollConcluido: true, // TRUE - para testes, valor original - false.
     imagensMapeadas: false,
     enviarProBackground: false, 
     capituloFinalizado: false,
   },
 
-  imagensCache: [],
+  resetarPipeline() {
+    console.log("[Pipeline] Resetando estado (Novo capítulo detectado)."); //testes
 
-  async executarTrabalho() {
-    if (!EventManager.permissaoParaRodar) return;
-    if (!this.estado.capituloFinalizado) return;
+    this._AVISOS = null;
+    this.estado.scrollConcluido = true; // TRUE - para testes, valor original - false.
+    this.estado.imagensMapeadas = false;
+    this.estado.enviarProBackground = false;
+    this.estado.capituloFinalizado = false;
+    this._primeiraImagemSrc = null;
 
-    if (!this.estado.scrollConcluido) {
-      const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
+    if (typeof ScrollManager !== 'undefined') ScrollManager.destruirMemoria();
+    if (typeof ImageScanner !== 'undefined') ImageScanner.destruirMemoria();
+  },
 
-      if (!scrollSucesso) {
-        EventManager.pararOperacaoGlobal();
-        return;
-      } 
+  _assinaturaCapitolo: null, // 3.2
 
-      this.estado.scrollConcluido = true; 
+  async _aguardarImagensRenderizarem(maxTentativas = 10, delayMs = 500) { // 10 === 5s
+    for (let tentativa = 1; tentativa < maxTentativas; tentativa++) {
+      const quantidadeValida = Array.from(document.querySelectorAll('img')).filter(
+        img => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450
+      ).length;
+
+      if (quantidadeValida >= 3) {
+        return quantidadeValida.slice(0, 2);
+      }
+
+      await Utils.esperar(delayMs)
     }
 
-    if (!this.estado.imagensMapeadas) {
-      console.log("[Pipeline] Identificado: Falta mapear as imagens.");
+    this.resetarPipeline();
 
-    }
+    return;
+  },
 
-    this.estado.capituloFinalizado = true; // 2.9
-  }
+  _gerarAssinaturaDOM() {
+     /*
+      aqui eu ia verificar se deu certo ou n, e ja ia finalizar como as outros ifs abaxio
+      e estava pensando no que fazer se usava o reset ou n.
+     */
+  },
+
+
+ 
+
+  // async executarTrabalho() {
+  //   if (!EventManager.permissaoParaRodar) return;
+  //   if (this.estado.capituloFinalizado) return;
+
+  //   if (!this.estado.scrollConcluido) {
+  //     const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
+
+  //     if (!scrollSucesso) {
+  //       EventManager.pararOperacaoGlobal();
+  //       return;
+  //     } 
+
+  //     this.estado.scrollConcluido = true; 
+
+  //     if (typeof ScrollManager !== 'undefined') ScrollManager.destruirMemoria();
+  //   }
+
+  //   if (!this.estado.imagensMapeadas) {
+  //     console.log("[Pipeline] Identificado: Falta mapear as imagens.");
+  //     setTimeout(() => ImageScanner.processar(), 5000);
+  //   }
+
+  //   this.estado.capituloFinalizado = true; // 2.9
+  // }
 
 
 }
@@ -60,9 +105,9 @@ const Utils = {
     const perfil = dadosHardware?.perfil || 'NORMAL';
     
     const configHardware = {
-      ULTRA:  { scroll: 250, retry: 300, tentativas: 40, debounceWait: 800, usarLotes: false }, 
-      NORMAL: { scroll: 400, retry: 500, tentativas: 30, debounceWait: 1200, usarLotes: true, taxaLote: 0.15 }, 
-      LOW:    { scroll: 750, retry: 1000, tentativas: 20, debounceWait: 1400, usarLotes: true, taxaLote: 0.08 } 
+      ULTRA:  { scroll: 250, retry: 300, tentativas: 40, debounceWait: 800, }, 
+      NORMAL: { scroll: 400, retry: 500, tentativas: 30, debounceWait: 1200, }, 
+      LOW:    { scroll: 750, retry: 1000, tentativas: 20, debounceWait: 1400, } 
     };
 
     this.config = configHardware[perfil];
@@ -74,17 +119,39 @@ const ImageScanner = {
   _Filter: null,
   _estadoFetch: null, // 2.7
   _totalImagens: 0,
+  _cacheImagens: [],
   _estado: {
     totalFalhas: 0,
     limiteCritico: 0,
+    tentouFallback: false,
+    ignorarErrosFuturos: false,
   },
-   
+
+  _resetarEstadoLogico() {
+    this._estadoFetch = null;
+    this._totalImagens = 0;
+    this._cacheImagens = [];
+    this._estado = {
+      totalFalhas: 0,
+      limiteCritico: 0,
+      tentouFallback: false,
+      ignorarErrosFuturos: false
+    };
+  },
+
+  destruirMemoria() {
+    this._AVISOS = null;
+    this._Filter = null;
+    this._cacheImagens = null;
+    console.log("[Scanner] Memória liberada. Módulos descarregados.");
+  },
+
   extrairImagensDoDOM() {
     const scrollYAtual = window.scrollY;
     const scrollXAtual = window.scrollX;
     const images = document.getElementsByTagName('img');
 
-    return Array.from(images).reduce((acumulador, img) => {
+    this._cacheImagens = Array.from(images).reduce((acumulador, img) => {
       if (img.naturalHeight > img.naturalWidth && img.naturalWidth > 450) {
         const rect = img.getBoundingClientRect();
         acumulador.push({
@@ -101,6 +168,8 @@ const ImageScanner = {
       }
       return acumulador;
     }, []);
+
+    return this._cacheImagens;
   },
 
   async _prepararDespacharLote(lote, indexInicial, isTestDrive) {
@@ -158,19 +227,31 @@ const ImageScanner = {
         return false;
       }
     }
+
+
+    //   Futuro Implementar Fallback Silencioso e Limite Crítico Dinâmico.
+    // - Se fetch falhar, tentar Canvas.
+    // - Atualizar UI com fases ("Ativando Canvas") em vez de travar o usuário.
+    // 
+    // REGRA: Permitimos pelo menos 3 falhas (ruídos comuns de anúncio/pixel) 
+    // OU 15% do total, o que for MAIOR.
+    // TETO DE SEGURANÇA: Nunca deixar passar de 12 falhas sem avisar, 
+    // mesmo em capítulos gigantes de 100 páginas.
   }, 
 
   async _orquestrarVarredura(imgsFiltradas) {
     const tamanhoTesteDrive = Math.min(4, this._totalImagens);
     const loteTeste = imgsFiltradas.slice(0, tamanhoTesteDrive);
     
-    const testeSucesso = await this._prepararDespacharLote(loteTeste, 33, true);
+    const testeSucesso = await this._prepararDespacharLote(loteTeste, 1, true);
   },  
 
   async processar() {
     //if (!EventManager.permissaoParaRodar) return; DESATIVADO PARA TESTES
     
     try {
+      this._resetarEstadoLogico();
+
       if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager'); 
       if (!this._Filter) this._Filter = await Utils.importarModulo('filtro.js', 'filtroImg');
 
@@ -178,23 +259,21 @@ const ImageScanner = {
       this._totalImagens = imgsFiltradas.length;
       this._estadoFetch = { erros: 0 };
 
-      if (this._totalImagens === 0) {
-        this._AVISOS.mostrarStatus('erro', 'Nenhuma imagem válida encontrada no site.');
-        return false;
-      }
+     
+      // if (this._totalImagens === 0) {
+      //   this._AVISOS.mostrarStatus('erro', 'Nenhuma imagem válida encontrada no site.');
+      //   return false;
+      // }
 
-      //this._estado.limiteCritico = Math.max(10, Math.ceil(this._totalImagens * 0.25)); Tive um ideia melhor 
-      this._AVISOS.mostrarStatus('carregando', `Processando ${this._totalImagens} imagens...`);
+      // this._AVISOS.mostrarStatus('carregando', `Processando ${this._totalImagens} imagens...`);
 
-      /*const sucessoVarredura =*/ await this._orquestrarVarredura(imgsFiltradas);
+      // /*const sucessoVarredura =*/ await this._orquestrarVarredura(imgsFiltradas);
       //return sucessoVarredura !== false;
     } catch (e) {
       if (this._AVISOS) this._AVISOS.mostrarStatus('erro', 'Falha crítica no processamento.');
       return false;
     } finally {
-      this._Filter = null;
-      this._estadoFetch = null;
-      this._totalImagens = 0;
+      this._resetarEstadoLogico();
     }
   },
 }
@@ -311,6 +390,10 @@ const EventManager = {
 
 const ScrollManager = {
   _AVISOS: null,
+
+  destruirMemoria() {
+    this._AVISOS = null;
+  },
 
   _chegouAoFim (scroller) {
     const total = scroller.scrollHeight || document.documentElement.scrollHeight;
@@ -460,7 +543,8 @@ const ScrollManager = {
   },
   
   async executarDescidaPrincipal() {
-    this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
+    if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
+    
     let elementoScroll = await this._encontrarElementoComRetry(); 
     const sucesso = await this.carregarPaginaManga(elementoScroll);
     
@@ -473,20 +557,19 @@ const ScrollManager = {
       await Utils.esperar(2000);
       this._AVISOS.mostrarStatus('fechar');
 
-      this._AVISOS = null;
-      //PipelineManga.executarTrabalho();
+      //PipelineManga.executarTrabalho(); DESATIVADO PARA TESTES.
     } else { 
       this._AVISOS.mostrarStatus('erro', 'Falha ao percorrer o mangá.'); 
-      this._AVISOS = null;
     }
 
     return sucesso;
   },
 }
 
-EventManager.init();
-//ImageScanner.processar()
-setTimeout(() => ImageScanner.processar(), 5000);
+
+PipelineManga._gerarAssinaturaDOM();
+
+
 
 
 /*
