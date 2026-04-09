@@ -32,16 +32,37 @@ const ESTILOS_UI = `
     background: var(--am-bg-card); padding: 24px; border-radius: 12px;
     border: 1px solid var(--am-borda); box-shadow: 0 15px 35px rgba(0,0,0,0.8);
     text-align: center; color: var(--am-texto); font-family: 'Segoe UI', sans-serif;
-    max-width: 320px; transform: translateY(20px); transition: transform 0.3s ease;
+    max-width: 340px; /* Aumentei ligeiramente de 320 para 340 para dar mais respiro */
+    transform: translateY(20px); transition: transform 0.3s ease;
   }
   .am-caixa h3 { color: #a78bfa; margin: 0 0 10px 0; font-size: 18px; }
   .am-caixa p { margin: 0 0 20px 0; font-size: 14px; color: #94a3b8; line-height: 1.4; }
-  .am-botoes { display: flex; gap: 12px; justify-content: center; }
-  .am-btn { padding: 10px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; border: none; transition: 0.2s; }
+
+  .am-botoes { 
+    display: flex; 
+    gap: 10px; 
+    justify-content: center; 
+    flex-wrap: wrap; /* Permite que um botão caia para a linha de baixo se não couber */
+    align-items: center; 
+  }
+
+  .am-btn { 
+    padding: 10px 16px; /* Padding um pouco menor nas laterais */
+    border-radius: 6px; 
+    cursor: pointer; 
+    font-weight: bold; 
+    border: none; 
+    transition: 0.2s; 
+    white-space: nowrap; /* Impede que o texto quebre e deixe o botão alto */
+    flex: 1 1 auto; /* Faz os botões dividirem o espaço ou preencherem a linha se caírem */
+  }
+
   .am-btn-sim { background: var(--am-roxo-primario); color: white; }
   .am-btn-sim:hover { background: var(--am-roxo-hover); transform: translateY(-1px); }
   .am-btn-nao { background: transparent; border: 1px solid #475569; color: #94a3b8; }
   .am-btn-nao:hover { background: rgba(255,255,255,0.05); color: white; }
+  .am-btn-ignorar { background: transparent; border: 1px solid var(--am-aviso); color: #fbbf24; }
+  .am-btn-ignorar:hover { background: rgba(245, 158, 11, 0.1); color: white; transform: translateY(-1px); }
 
   /* --- TOAST DE STATUS (Canto inferior) --- */
   #am-toast {
@@ -106,13 +127,17 @@ export const AvisoManager = {
       btnNao: 'Cancelar'
     };
 
-    const { titulo, mensagem, btnSim, btnNao } = { ...defaults, ...opcoes };
+    const { titulo, mensagem, btnSim, btnNao, btnIgnorar } = { ...defaults, ...opcoes };
 
     return new Promise((resolv) => {
       this._injetarCSS();
       const overlay = document.createElement('div');
       overlay.id = 'am-overlay';
       
+      const htmlBtnIgnorar = btnIgnorar 
+            ? `<button class="am-btn am-btn-ignorar" id="am-ignorar">${btnIgnorar}</button>` 
+            : '';
+
       overlay.innerHTML = `
         <div class="am-caixa">
           <h3>${titulo}</h3>
@@ -120,6 +145,7 @@ export const AvisoManager = {
           <div class="am-botoes">
             <button class="am-btn am-btn-sim" id="am-sim">${btnSim}</button>
             <button class="am-btn am-btn-nao" id="am-nao">${btnNao}</button>
+            ${htmlBtnIgnorar}
           </div>
         </div>
       `;
@@ -138,6 +164,10 @@ export const AvisoManager = {
 
       document.getElementById('am-sim').onclick = () => fechar(true); // 1.2
       document.getElementById('am-nao').onclick = () => fechar(false);
+
+      if (btnIgnorar) {
+        document.getElementById('am-ignorar').onclick = () => fechar('ignorar');
+      }
     });
   },
 

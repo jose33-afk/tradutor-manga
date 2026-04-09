@@ -1,84 +1,3 @@
-const PipelineManga = {
-  _AVISOS: null, // Eu estava aqui, tentando ver se compensava deixar isso grobal ou local como esta.
-  estado: {
-    scrollConcluido: true, // TRUE - para testes, valor original - false.
-    imagensMapeadas: false,
-    enviarProBackground: false, 
-    capituloFinalizado: false,
-  },
-
-  resetarPipeline() {
-    console.log("[Pipeline] Resetando estado (Novo capítulo detectado)."); //testes
-
-    this._AVISOS = null;
-    this.estado.scrollConcluido = true; // TRUE - para testes, valor original - false.
-    this.estado.imagensMapeadas = false;
-    this.estado.enviarProBackground = false;
-    this.estado.capituloFinalizado = false;
-    this._primeiraImagemSrc = null;
-
-    if (typeof ScrollManager !== 'undefined') ScrollManager.destruirMemoria();
-    if (typeof ImageScanner !== 'undefined') ImageScanner.destruirMemoria();
-  },
-
-  _assinaturaCapitolo: null, // 3.2
-
-  async _aguardarImagensRenderizarem(maxTentativas = 10, delayMs = 500) { // 10 === 5s
-    for (let tentativa = 1; tentativa < maxTentativas; tentativa++) {
-      const quantidadeValida = Array.from(document.querySelectorAll('img')).filter(
-        img => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450
-      ).length;
-
-      if (quantidadeValida >= 3) {
-        return quantidadeValida.slice(0, 2);
-      }
-
-      await Utils.esperar(delayMs)
-    }
-
-    this.resetarPipeline();
-
-    return;
-  },
-
-  _gerarAssinaturaDOM() {
-     /*
-      aqui eu ia verificar se deu certo ou n, e ja ia finalizar como as outros ifs abaxio
-      e estava pensando no que fazer se usava o reset ou n.
-     */
-  },
-
-
- 
-
-  // async executarTrabalho() {
-  //   if (!EventManager.permissaoParaRodar) return;
-  //   if (this.estado.capituloFinalizado) return;
-
-  //   if (!this.estado.scrollConcluido) {
-  //     const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
-
-  //     if (!scrollSucesso) {
-  //       EventManager.pararOperacaoGlobal();
-  //       return;
-  //     } 
-
-  //     this.estado.scrollConcluido = true; 
-
-  //     if (typeof ScrollManager !== 'undefined') ScrollManager.destruirMemoria();
-  //   }
-
-  //   if (!this.estado.imagensMapeadas) {
-  //     console.log("[Pipeline] Identificado: Falta mapear as imagens.");
-  //     setTimeout(() => ImageScanner.processar(), 5000);
-  //   }
-
-  //   this.estado.capituloFinalizado = true; // 2.9
-  // }
-
-
-}
-
 const Utils = {
   config: null,
 
@@ -113,6 +32,104 @@ const Utils = {
     this.config = configHardware[perfil];
   },
 }
+
+const PipelineManga = {
+  _AVISOS: null, 
+  estado: {
+    scrollConcluido: true, // TRUE - para testes, valor original - false.
+    imagensMapeadas: false,
+    enviarProBackground: false, 
+    capituloFinalizado: false,
+    eventosProntos: false,
+  },
+
+  resetarPipeline() {
+    console.log("[Pipeline] Resetando estado (Novo capítulo detectado)."); //testes
+
+    this._AVISOS = null;
+    this.estado.scrollConcluido = true; // TRUE - para testes, valor original - false.
+    this.estado.imagensMapeadas = false;
+    this.estado.enviarProBackground = false;
+    this.estado.capituloFinalizado = false;
+    this._primeiraImagemSrc = null;
+
+    if (typeof ScrollManager !== 'undefined') ScrollManager.destruirMemoria();
+    if (typeof ImageScanner !== 'undefined') ImageScanner.destruirMemoria();
+  },
+
+  // async _garantirEtapaVital(tarefaCallback, msgCarregando, dadosAviso) {
+  //   let sucesso = false;
+
+  //   while (!sucesso) {
+  //     this._AVISOS.mostrarStatus('carregando', msgCarregando);
+  //     sucesso = await tarefaCallback();
+  //     console.log('sucesso teste:', sucesso);
+
+  //     if (!sucesso) {
+  //       const tentarDeNovo = await this._AVISOS.verificarSecontinua({
+  //         titulo: dadosAviso.titulo,
+  //         mensagem: dadosAviso.mensagem,
+  //         btnSim: 'Repetir',
+  //         btnNao: 'Cancelar'
+  //       });
+  //     }
+  //   }
+  // },
+
+  _assinaturaCapitulo: null, // 3.2
+
+  async _gerarAssinaturaDOM(maxTentativas = 10, delayMs = 500) { // 10 === 5s
+    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+      const ArrayImgs = Array.from(document.querySelectorAll('img')).filter(
+        img => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450
+      );
+    
+      if (ArrayImgs.length >= 3) {
+       this._assinaturaCapitulo = ArrayImgs.slice(0, 2).map(img => img.src.replace(/^blob:/, '')).join('|');
+
+       if (this._assinaturaCapitulo?.length > 10) return true;
+      }
+
+      await Utils.esperar(delayMs);
+    }
+
+    this.resetarPipeline();
+    return false;
+  },
+
+
+  async executarTrabalho() {
+    if (!EventManager.permissaoParaRodar) return;
+    if (this.estado.capituloFinalizado) return;
+
+    if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
+    
+
+  //   if (!this.estado.scrollConcluido) {
+  //     const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
+
+  //     if (!scrollSucesso) {
+  //       EventManager.pararOperacaoGlobal();
+  //       return;
+  //     } 
+
+  //     this.estado.scrollConcluido = true; 
+
+  //     if (typeof ScrollManager !== 'undefined') ScrollManager.destruirMemoria();
+  //   }
+
+  //   if (!this.estado.imagensMapeadas) {
+  //     console.log("[Pipeline] Identificado: Falta mapear as imagens.");
+  //     setTimeout(() => ImageScanner.processar(), 5000);
+  //   }
+
+  //   this.estado.capituloFinalizado = true; // 2.9
+  }
+
+
+}
+
+
 
 const ImageScanner = {
   _AVISOS: null,
@@ -566,8 +583,35 @@ const ScrollManager = {
   },
 }
 
+async function salvarDados() {
+  try {
+    const resposta = await chrome.runtime.sendMessage({ 
+      action: 'GERENCIAR_STORAGE_ABA',
+      metodo: 'salvar',
+      dados: { status: 'sucesso' } // Exemplo de carga
+    });
 
-PipelineManga._gerarAssinaturaDOM();
+    console.log("O Background respondeu:", resposta);
+    
+    if (resposta?.sucesso) {
+      console.log('resposta:', )
+    }
+  } catch (error) {
+    console.error("Erro na comunicação:", error);
+  }
+}
+
+
+salvarDados()
+//PipelineManga.executarTrabalho();
+
+/*
+  APOS A FUNCAO DE SALVAR E BUSCAR DADOS ESTIVER PRONTA EU VOU REFATORAR O MONUTOR DE ULR PARA UM QUE USA
+  A URL E A IMPRESSAO PRA SABER SE MUDOU, PARA MAIS DETALHES ESTAO NO GEMINI E NA ISSUES DO GIT.
+  
+  - POS ISSO EU POSSO VOLTAR PRO PIPELINE 
+  - E DEPOIS PRO IMGSCANNER.
+*/
 
 
 

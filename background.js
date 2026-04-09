@@ -129,19 +129,33 @@ const BackgroundManager = {
     });
   },
 
-  async _atualizarStorageDaAba(tabId, novosDados) {
+  async _gerenciarStorageAba(tabId, metodo, dados = null) {
+    // DEPOIS DE TERMINAR A REFATORACAO DE PERFORMANCE DE REQUEST 
+    // EU CONTINUO AQUI FAZENDO A FUNCAO DE SALVAR E BUSCAR DADOS.
+    
     const MAXTENTATIVAS = 3;
-
-    for (let tentativa = 1; tentativa < MAXTENTATIVAS; tentativa++) {
-      try {
-        await StorageManager.salvar(tabId, novosDados);
-        return;
-      } catch(e) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+    
+    if (typeof StorageManager[metodo] !== 'function') {
+      return { erro:`[Background] O método '${tipo}' não existe no StorageManager.` };
     }
+
+    console.log('existe');
+    // for (let tentativa = 1; tentativa < MAXTENTATIVAS; tentativa++) {
+    //   try {
+    //     if (acao === 'salvar') {
+    //       await StorageManager.salvar(tabId, dados);
+    //       return true;
+    //     }
+      
+    //   } catch(e) {
+    //     await new Promise(resolve => setTimeout(resolve, 200));
+    //   }
+    // }
+    // console.log(tabId)
+    // console.log(acao)
+    // console.log(dados)
   },
-  
+
   init() {
     chrome.runtime.onStartup.addListener(() => this._faxinaGeral()); // 2.3
     chrome.runtime.onInstalled.addListener(() => this._faxinaGeral());
@@ -150,19 +164,13 @@ const BackgroundManager = {
     this._registrarOuvintesRelativos();
     
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action ===  "PROCESSAR_CAPITOLO") {
-        gerenciarProcessamento(request, sender.tab.id)
-      }
-
-      if (request.action === "VERIFICA_ESTADO_ABA") {
-        this.verificarSeContinua(sender.tab.id, sendResponse);
-        return true; // 2.2
-      }
-
-      if (request.action === "ATUALIZAR_STORAGE_ABA") {
-        this._atualizarStorageDaAba(sender.tab.id, request.novosDados);
-      }
+      return this._gerenciarMensagens(request, sender, sendResponse);
     });
+  },
+
+  _gerenciarMensagens() {
+    // EU ESTAVA AQUI TENTANDO FAZER UM JEITO MAIS SIMPLES E RAPIDO PARA EVITAR USAR O THEN E USAR AWAIT
+    // PARA QUALQUER FUNCAO COM OU SEM ASYNC.
   },
 
   async verificarSeContinua(id, sendResponse) {
@@ -174,16 +182,18 @@ const BackgroundManager = {
       sendResponse(false);
     }
   },
+
+
 }
 
 BackgroundManager.init();
 
-let limite = true; //teste
+//let limite = true; //teste
 
 // FUTURAMENTE MOVER ISSO PARA UM MODULO SEPARADO OU COLOCAR NO BACKGROUND MANAGER
-async function gerenciarProcessamento(request, tabId) {
-  const { site, capituloUrl } = request.dadosExtras;
-  const listaImagens = request.data; //Imgs so pra teste no final eu vou salvar o text e as cordenadas pro popup.
+// async function gerenciarProcessamento(request, tabId) {
+//   const { site, capituloUrl } = request.dadosExtras;
+//   const listaImagens = request.data; //Imgs so pra teste no final eu vou salvar o text e as cordenadas pro popup.
   
   // try {
     //const capituloSalvo = await Banco.buscar(site, capituloUrl);
@@ -193,10 +203,10 @@ async function gerenciarProcessamento(request, tabId) {
     //if (capituloSalvo) return capituloSalvo.paginas; DESATIVADO: Para testes do OCR.
 
     //organizar e entender isso.
-    if (limite) {
-      limite = false
+    // if (limite) {
+    //   limite = false
       
-      const resultadodoAzure = await gerenciarOCR(listaImagens);
+    //   const resultadodoAzure = await gerenciarOCR(listaImagens);
       
       // const dataUrl = JSON.stringify(resultadodoAzure); // Vamos passar via Storage ou URL
 
@@ -208,7 +218,7 @@ async function gerenciarProcessamento(request, tabId) {
       //   }, 1000);
       // });
       
-    }
+    //}
     //  //beta isso vai ficar no backgroud
     //   _blobToBase64 (blob) {
     //     return new Promise((resolve, reject) => {
@@ -232,7 +242,7 @@ async function gerenciarProcessamento(request, tabId) {
     // // Aqui entra o seu Array(7) que você mandou
     // lotes: resultadodoAzure 
     //};
-};
+//};
 
 
 
