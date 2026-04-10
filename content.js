@@ -586,9 +586,9 @@ const ScrollManager = {
 async function salvarDados() {
   try {
     const resposta = await chrome.runtime.sendMessage({ 
-      action: 'GERENCIAR_STORAGE_ABA',
-      metodo: 'salvar',
-      dados: { status: 'sucesso' } // Exemplo de carga
+      action: "TESTAR_SINC", 
+      msg: "Opa, a barreira deixou passar!", 
+      valor: 50
     });
 
     console.log("O Background respondeu:", resposta);

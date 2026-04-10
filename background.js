@@ -12,7 +12,7 @@ const Banco = {
     const todasAsGavetas = [ ...this.gavetasOficiais, ...this.novasGavetas ];
     
     todasAsGavetas.forEach(site => {
-      if (!linkDB.objectStoreNames.contains(site)) {  // 1.3
+      if (!linkDB.objectStoreNames.contains(site)) {  // 1.0
         linkDB.createObjectStore(site, { keyPath: "capituloUrl" });
       };
     });
@@ -22,8 +22,8 @@ const Banco = {
     return new Promise((resolve, reject) => { 
       const pedido = indexedDB.open("MangaCache", 1); //1 
 
-      pedido.onupgradeneeded = (e) => { // 1.4
-        const linkDB = e.target.result; // 1.5 
+      pedido.onupgradeneeded = (e) => { // 1.1
+        const linkDB = e.target.result; // 1.2
 
         // DELETAR GAVETAS.
         // if (linkDB.objectStoreNames.contains("nome da gaveta")) {
@@ -33,7 +33,7 @@ const Banco = {
         this.criarGavetas(linkDB);
       };
 
-      pedido.onsuccess = () => resolve(pedido.result); // 1.6
+      pedido.onsuccess = () => resolve(pedido.result); // 1.3
       pedido.onerror = (e) => reject("Erro fatal ao abrir o banco:", e.target.error);
     });
   },
@@ -43,7 +43,7 @@ const Banco = {
     const gavetaNome = this._definirGaveta(site);
     
     return new Promise((resolve) => {
-      const operacao = linkDB.transaction([gavetaNome], "readonly"); // 1.7
+      const operacao = linkDB.transaction([gavetaNome], "readonly"); // 1.4
       const gavetaAberta = operacao.objectStore(gavetaNome);
       const pedido = gavetaAberta.get(url);
 
@@ -63,8 +63,8 @@ const Banco = {
     const linkDB = await this.conectar();
     const gavetaNome = this._definirGaveta(site);
     
-    return new Promise((resolve, reject) => { // 1.8
-      const operacao = linkDB.transaction([gavetaNome], "readwrite");// 1.9
+    return new Promise((resolve, reject) => { // 1.5
+      const operacao = linkDB.transaction([gavetaNome], "readwrite");// 1.6
       const gavetaAberta = operacao.objectStore(gavetaNome);
 
       gavetaAberta.put(dados);
@@ -83,13 +83,21 @@ const Banco = {
 
   _definirGaveta(site) {
     const encontrado = this.gavetasOficiais.find(siteOficial => site.includes(siteOficial));
-    return encontrado ? encontrado : this.novasGavetas[0]; // 2.0
+    return encontrado ? encontrado : this.novasGavetas[0]; // 1.7
   },
 };
 
 const BackgroundManager = {
+  Validador: {
+    string: (val) => typeof val === 'string' && val.trim() !== '',
+    numero: (val) => typeof val === 'number' && !isNaN(val),
+    array: (val) => Array.isArray(val) && val.length > 0,
+    objeto: (val) => typeof val === 'object' && val !== null && !Array.isArray(val) && Object.keys(val).length > 0,
+    booleano: (val) => typeof val === 'boolean'
+  },
+
   async _limparLixoDaAba(tabId) {
-    await StorageManager.destruirGaveta(tabId); // 2.1
+    await StorageManager.destruirGaveta(tabId); // 1.8
   },
 
   async _faxinaGeral() {
@@ -113,7 +121,7 @@ const BackgroundManager = {
 
         const { newValue, oldValue } = changes[key];
         
-        const estadoAtual = newValue?.estaCorrendo === true; // 2.4
+        const estadoAtual = newValue?.estaCorrendo === true; // 2.0
         const estadoAntigo = oldValue?.estaCorrendo === true;
 
         if (estadoAtual !== estadoAntigo) {
@@ -123,7 +131,7 @@ const BackgroundManager = {
 
           chrome.tabs.sendMessage(tabId, mensagem).catch(() => {
             console.warn(`[Erro] A aba ${tabId} não está pronta para receber mensagens (sem content script).`);
-          }); // 2.5 | 2.6
+          }); // 2.1 | 2.2
         }
       }
     });
@@ -133,6 +141,8 @@ const BackgroundManager = {
     // DEPOIS DE TERMINAR A REFATORACAO DE PERFORMANCE DE REQUEST 
     // EU CONTINUO AQUI FAZENDO A FUNCAO DE SALVAR E BUSCAR DADOS.
     
+    console.log(tabId, metodo, dados)
+    console.log(metodo, dados)
     const MAXTENTATIVAS = 3;
     
     if (typeof StorageManager[metodo] !== 'function') {
@@ -154,10 +164,11 @@ const BackgroundManager = {
     // console.log(tabId)
     // console.log(acao)
     // console.log(dados)
+    return { status: "metodo_verificado_mas_sem_acao" };
   },
 
   init() {
-    chrome.runtime.onStartup.addListener(() => this._faxinaGeral()); // 2.3
+    chrome.runtime.onStartup.addListener(() => this._faxinaGeral()); // 1.9
     chrome.runtime.onInstalled.addListener(() => this._faxinaGeral());
     chrome.tabs.onRemoved.addListener((tabId) => this._limparLixoDaAba(tabId));
 
@@ -168,29 +179,89 @@ const BackgroundManager = {
     });
   },
 
-  _gerenciarMensagens() {
-    // EU ESTAVA AQUI TENTANDO FAZER UM JEITO MAIS SIMPLES E RAPIDO PARA EVITAR USAR O THEN E USAR AWAIT
-    // PARA QUALQUER FUNCAO COM OU SEM ASYNC.
+  _validarPayload(request, schema) {
+    if (!schema) return null; // 2.5
+
+    for (const [chave, tipo] of Object.entries(schema)) { // 2.6 | 2.7
+      const valorRecebido = request[chave];
+      const verificador = this.Validador[tipo];
+      
+      if (!verificador || !verificador(valorRecebido)) {
+        return `O parâmetro '${chave}' está ausente ou não é um '${tipo}' válido.`;
+      }
+    }
+
+    return null;
   },
 
-  async verificarSeContinua(id, sendResponse) {
-    try {
-      const estaCorrendo = await StorageManager.buscar(id, 'estaCorrendo');
-      sendResponse(estaCorrendo);
-    } catch(e) {
-      console.error("[BackgroundManager] Erro ao verificar estado:", e);
-      sendResponse(false);
+  _gerenciarMensagens(request, sender, sendResponse) {
+    const requestCopy = {
+      ...request,
+      tabId: sender.tab?.id
+    }
+
+    /* 
+      =========================================================================
+      DOCUMENTAÇÃO TÉCNICA: CONTRATO DE INTERFACE (SCHEMA)
+      =========================================================================
+       O 'schema' atua como um contrato de dados estrito. Propriedades declaradas
+       são obrigatórias; propriedades omitidas são tratadas como opcionais.
+       
+       1. NOMENCLATURA: As chaves do schema devem ser idênticas às do request.
+       2. OPCIONAIS: Para dados facultativos, omita a chave no schema.
+       3. RIGIDEZ: Regras ativas (ex: 'objeto') bloqueiam null, {} ou arrays.
+      ========================================================================= 
+    */
+
+    const rotas = {
+      "GERENCIAR_STORAGE_ABA": {
+        isAsync: true,
+        funcao: this._gerenciarStorageAba.bind(this), // 2.3
+        schema: { tabId: 'numero', metodo: 'string', dados: 'objeto' }, // 3.4
+        argumentos: [ requestCopy.tabId, requestCopy.metodo, requestCopy.dados ], // 2.8
+      },
+    }
+
+    const rota = rotas[requestCopy.action];
+
+    if (!rota) {
+      console.warn(`Ação desconhecida: ${requestCopy.action}`);
+      return false;
+    }
+
+    const mensagemErro = this._validarPayload(requestCopy, rota.schema);
+
+    if (mensagemErro) {
+      console.error(`[Bloqueado] ${requestCopy.action} -> ${mensagemErro}`);
+      sendResponse({ sucesso: false, erro: mensagemErro });
+      return false; 
+    }
+
+    if (rota.isAsync) {
+      this._executorUniversal(rota.funcao, rota.argumentos, sendResponse);
+      return true; // 2.8
+    } else {
+      const resultadoSincrono = rota.funcao(...rota.argumentos);
+      sendResponse({ sucesso: true, dados: resultadoSincrono }); 
+      return false;
     }
   },
 
-
+  async _executorUniversal(funcao, argumentos, sendResponse) {
+    try {
+      const resultado = await funcao(...argumentos);
+      sendResponse({ sucesso: true, dados: resultado });
+    } catch(e) {
+      sendResponse({ sucesso: false, erro: e.message });
+    }
+  },
 }
 
 BackgroundManager.init();
 
 //let limite = true; //teste
 
-// FUTURAMENTE MOVER ISSO PARA UM MODULO SEPARADO OU COLOCAR NO BACKGROUND MANAGER
+// DEPOIS TRANSFORMAR ISSO EM UM MODULO PROCESSAR CAPITOLO OU ALGO PARECIDO.
 // async function gerenciarProcessamento(request, tabId) {
 //   const { site, capituloUrl } = request.dadosExtras;
 //   const listaImagens = request.data; //Imgs so pra teste no final eu vou salvar o text e as cordenadas pro popup.
@@ -247,21 +318,32 @@ BackgroundManager.init();
 
 
 /*
-  1.1 - get(null) = "Me traga TUDO que tem no banco" para verificar se as variaveis ja existem ou precisa cria-las.
-  1.2 - pega o seu objeto e extrai todas as chaves dele, transformando-as em um Array (uma lista). E como a gente sabe, Arrays possuem a propriedade .length!
-  1.3 - objectStoreNames.contains() retorna true ou false.
-  1.4 - Se for a primeira vez, ele cria as "gavetas".
-  1.5 - link pra configurar.
-  1.6 - link permanente.
-  1.7 - readonly === leitura.
-  1.8 - Nao funciona nativamente.
-  1.9 - readwrite === escrita.
-  2.0 - outros_sites".
-  2.1 - ele dispara toda vez que um aba e fechada, mas n bug. e e mais barato assim do que verificar se existe.
-  2.2 - vai chegar via promise/await, impedindo que ele feche a conexão antes da hora.
-  2.3 - Limpa todos os caches antigos ao iniciar o Chrome ou instalar/atualizar a extensão
-  2.4 - O '=== true' garante que, se vier undefined, null ou texto, ele vira um 'false' limpo!
-  2.5 - Esse metodo tabs o primeiro parametro e o ID da aba === endereco da copia do content, o segundo e a mesagem.
-  2.6 - da pra usar o catch assim, mas so em funcoes que retornam promise.
-  1 - qualquer altercao na estrutura do banco ou deletar gavetas; exije a mudanca do valor, ou apagar o cache (F12 em Application).
+  1.0 - objectStoreNames.contains() retorna true ou false.
+  1.1 - Se for a primeira vez, ele cria as "gavetas".
+  1.2 - link pra configurar.
+  1.3 - link permanente.
+  1.4 - readonly === leitura.
+  1.5 - Nao funciona nativamente.
+  1.6 - readwrite === escrita.
+  1.7 - outros_sites".
+  1.8 - ele dispara toda vez que um aba e fechada, mas n bug. e e mais barato assim do que verificar se existe.
+  
+  1.9 - Limpa todos os caches antigos ao iniciar o Chrome ou instalar/atualizar a extensão
+  2.0 - O '=== true' garante que, se vier undefined, null ou texto, ele vira um 'false' limpo!
+  2.1 - Esse metodo tabs o primeiro parametro e o ID da aba === endereco da copia do content, o segundo e a mesagem.
+  2.2 - da pra usar o catch assim, mas so em funcoes que retornam promise.
+  2.3 - O .bind() cria uma cópia da função, mas com o this "travado" no objeto que você escolher. serve para idependente de onde ela estiver 
+        ela n perdera a referencia original, esta ai por causa do this
+  2.4 - Para nao dar erro caso a propriedade venha undefied.
+  2.5 - Sem regras? Passa direto.
+  2.6 - O Object.entries pega esse objeto e transforma em uma lista (array) de pares, assim:
+        const manga = { nome: "Naruto", caps: 700 };
+        [
+          ["nome", "Naruto"], // [chave, valor]
+          ["caps", 700]       // [chave, valor]
+        ]
+  2.7 - Esses colchetes estao com essa funcao const 
+        [primeira, segunda] = ["Maçã", "Banana"]; de atribuicao de variaveis e nao aquela de pegar um valor especifico usando o nome da chave
+        O JS faz: primeira = "Maçã" e segunda = "Banana"
+  2.8 - VITAL: Segura a linha pro Chrome esperar o await!
 */
