@@ -586,9 +586,9 @@ const ScrollManager = {
 async function salvarDados() {
   try {
     const resposta = await chrome.runtime.sendMessage({ 
-      action: "TESTAR_SINC", 
-      msg: "Opa, a barreira deixou passar!", 
-      valor: 50
+      action: "GERENCIAR_STORAGE_ABA", 
+      metodo: 'salvar',
+      dados:{ nobru:'93939'}
     });
 
     console.log("O Background respondeu:", resposta);
@@ -602,7 +602,7 @@ async function salvarDados() {
 }
 
 
-salvarDados()
+//salvarDados() Pausada para melhorias na seguranca do StorageManager
 //PipelineManga.executarTrabalho();
 
 /*

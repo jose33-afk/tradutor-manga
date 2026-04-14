@@ -12,12 +12,13 @@ const StorageManager = {
   },
 
   _isTabIdValido(tabId) {
-    if (tabId instanceof Promise) {
-      console.error("[StorageManager] Faltou o 'await' na hora de pegar o tabId! Ele chegou como Promise.");
-      return null;
-    }
     if (tabId === 'global') return true;
-    if (tabId === null || typeof tabId !== 'number') return null;
+
+    if (typeof tabId !== 'number' || !Number.isInteger(tabId) || tabId < 0) {
+      console.warn(`[StorageManager] tabId inválido rejeitado:`, tabId);
+      return false;
+    }
+
     return true;
   },
 
@@ -28,19 +29,45 @@ const StorageManager = {
     return { nomeGaveta: `aba_${tabId}`, base: this.variaveisBase };
   },
 
+  _isObjetoPuro: (item) => item && typeof item === 'object' && !Array.isArray(item),
+
+  _mesclarDados(alvo, fonte) {
+    // EU ESTAVA AQUI TESTANDO A BARRAGEM DE DADOS E DEU ERRO COM ARRAY
+    // POR ISSO ESTAVA IMPLEMENTANDO UM BARRAMENTO NO SALVAR E AQUI SE FOR ARRAY
+    // PASSADA DIRETAMENTE COMO ESTA LA NO BACKGROUND.
+    // EU N QUERO ISSO POS ELE VAI SUBSTITUIR TODOS OS DADOS DA ABA PELA ARRAY.
+
+    // for (const key in fonte) {
+    //   console.log(fonte[key])
+
+    //   if(isObjetoPuro(fonte[key]) && isObjetoPuro(alvo[key])) {
+    //     resultado[key] = this._mesclarDados(alvo[key], fonte[key]);
+    //   } else {
+    //     resultado[key] = fonte[key];
+    //   }   
+    // }
+
+    // return resultado;
+  },
+
   async salvar(tabId, novosdados) {
-    if (!this._isTabIdValido(tabId) || typeof novosdados !== 'object' || novosdados === null ) return; // 1.8
-    
+    if (!this._isTabIdValido(tabId) || typeof novosdados !== 'object' || novosdados === null || Array.isArray(novosdados)) return; // 1.8
+    // IRIA SUNSTITUIR ISSO ACIMA POR ISOBJETVALIDO
     const { nomeGaveta, base } = this._getConfig(tabId);
 
-    try {
-      const res = await chrome.storage.local.get(nomeGaveta);
-      const dados = res[nomeGaveta] || { ...base };
+    // try {
+    //   const res = await chrome.storage.local.get(nomeGaveta);
 
-      const dadosAtualizados = { ...dados, ...novosdados };
-      await chrome.storage.local.set({ [nomeGaveta]: dadosAtualizados });
+    //   const dados = res[nomeGaveta] || structuredClone(base);
+    //   console.log('originais', dados)
 
-    } catch(e) { console.error("Erro no salvar:", e); }
+    //   const dadosAtualizados = this._mesclarDados(dados, novosdados);
+    //   // const dados = res[nomeGaveta] || { ...base };
+
+    //   // const dadosAtualizados = { ...dados, ...novosdados };
+    //   // await chrome.storage.local.set({ [nomeGaveta]: dadosAtualizados });
+
+    // } catch(e) { console.error("Erro no salvar:", e); }
   },
 
   async buscar(tabId, keys) {
@@ -82,3 +109,7 @@ const StorageManager = {
 }
 
 globalThis.StorageManager = StorageManager;
+
+/*
+  1.0 - "item &&" já descarta o null e undefined automaticamente!
+*/

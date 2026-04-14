@@ -138,33 +138,27 @@ const BackgroundManager = {
   },
 
   async _gerenciarStorageAba(tabId, metodo, dados = null) {
-    // DEPOIS DE TERMINAR A REFATORACAO DE PERFORMANCE DE REQUEST 
-    // EU CONTINUO AQUI FAZENDO A FUNCAO DE SALVAR E BUSCAR DADOS.
-    
-    console.log(tabId, metodo, dados)
-    console.log(metodo, dados)
     const MAXTENTATIVAS = 3;
-    
+    let ultimoErro = "Erro desconhecido";
     if (typeof StorageManager[metodo] !== 'function') {
-      return { erro:`[Background] O método '${tipo}' não existe no StorageManager.` };
+      throw new Error(`O método '${metodo}' não existe no StorageManager.`);
     }
 
-    console.log('existe');
-    // for (let tentativa = 1; tentativa < MAXTENTATIVAS; tentativa++) {
-    //   try {
-    //     if (acao === 'salvar') {
-    //       await StorageManager.salvar(tabId, dados);
-    //       return true;
-    //     }
-      
-    //   } catch(e) {
-    //     await new Promise(resolve => setTimeout(resolve, 200));
-    //   }
-    // }
-    // console.log(tabId)
-    // console.log(acao)
-    // console.log(dados)
-    return { status: "metodo_verificado_mas_sem_acao" };
+    for (let tentativa = 1; tentativa <= MAXTENTATIVAS; tentativa++) {
+      try {
+        const resultado = await StorageManager[metodo](tabId, dados)
+        if (resultado) return resultado;
+
+      } catch(e) {
+        ultimoErro = e.message;
+
+        if (tentativa < MAXTENTATIVAS) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+    }
+  
+    throw new Error(`[Storage Error] Falha ao processar '${metodo}' após ${MAXTENTATIVAS} tentativas. Motivo: ${ultimoErro}`);
   },
 
   init() {
@@ -177,6 +171,15 @@ const BackgroundManager = {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return this._gerenciarMensagens(request, sender, sendResponse);
     });
+
+   const teste =  StorageManager._mesclarDados({
+      estaCorrendo: false,
+      idiomaOrigem: "en",
+      idiomaConfig: navigator.language.slice(0, 2) || "pt",
+      ultimaUrl: null
+      }, [1, 2, 3]);
+
+    console.log('resultado:', teste)
   },
 
   _validarPayload(request, schema) {
@@ -233,7 +236,7 @@ const BackgroundManager = {
 
     if (mensagemErro) {
       console.error(`[Bloqueado] ${requestCopy.action} -> ${mensagemErro}`);
-      sendResponse({ sucesso: false, erro: mensagemErro });
+      sendResponse({ sucesso: false, dados:null, erro: mensagemErro });
       return false; 
     }
 
@@ -242,7 +245,7 @@ const BackgroundManager = {
       return true; // 2.8
     } else {
       const resultadoSincrono = rota.funcao(...rota.argumentos);
-      sendResponse({ sucesso: true, dados: resultadoSincrono }); 
+      sendResponse({ sucesso: true, dados: resultadoSincrono, erro:null }); 
       return false;
     }
   },
@@ -250,9 +253,9 @@ const BackgroundManager = {
   async _executorUniversal(funcao, argumentos, sendResponse) {
     try {
       const resultado = await funcao(...argumentos);
-      sendResponse({ sucesso: true, dados: resultado });
+      sendResponse({ sucesso: true, dados: resultado, erro:null });
     } catch(e) {
-      sendResponse({ sucesso: false, erro: e.message });
+      sendResponse({ sucesso: false, dados:null, erro: e.message });
     }
   },
 }
