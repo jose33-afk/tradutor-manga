@@ -31,28 +31,45 @@ const StorageManager = {
 
   _isObjetoPuro: (item) => item && typeof item === 'object' && !Array.isArray(item),
 
-  _mesclarDados(alvo, fonte) {
-    // EU ESTAVA AQUI TESTANDO A BARRAGEM DE DADOS E DEU ERRO COM ARRAY
-    // POR ISSO ESTAVA IMPLEMENTANDO UM BARRAMENTO NO SALVAR E AQUI SE FOR ARRAY
-    // PASSADA DIRETAMENTE COMO ESTA LA NO BACKGROUND.
-    // EU N QUERO ISSO POS ELE VAI SUBSTITUIR TODOS OS DADOS DA ABA PELA ARRAY.
+  mesclarDados(alvo, fonte) {
+    /*
+      REGRAS DE MESCLAGEM (Deep Merge):
+      1. OBJETOS: Mesclagem recursiva. Chaves não mencionadas no envio são PRESERVADAS.
+      2. ARRAYS E PRIMITIVOS: Substituição integral. O valor novo "esmaga" o antigo.
+      LOGICA DE ATUALIZAÇÃO (Exemplos):
+        - Alterar valor simples: { perfil: "LOW" } ou { chave: "dado novo" }
+        - Criar nova Array:      { chave: [388, 5, 6] }
+        - Adicionar em Array:    { chave: [...antigos, novo] } (Somente se for alterar)
+      NOTA: Se você não pretende modificar uma Array existente, simplesmente não a inclua 
+      no objeto de atualização. Ela permanecerá intacta no banco. Caso deseje alterar 
+      ou adicionar itens, envie a lista completa e consolidada.
+    */
 
-    // for (const key in fonte) {
-    //   console.log(fonte[key])
+    if (!this._isObjetoPuro(alvo) || !this._isObjetoPuro(fonte)) {
+      console.error(`[StorageManager] Bloqueado: Tentativa de salvar dados inválidos`, fonte);
+      return false;
+    }
 
-    //   if(isObjetoPuro(fonte[key]) && isObjetoPuro(alvo[key])) {
-    //     resultado[key] = this._mesclarDados(alvo[key], fonte[key]);
-    //   } else {
-    //     resultado[key] = fonte[key];
-    //   }   
-    // }
+    const resultado = { ...alvo };
 
-    // return resultado;
+    for (const key in fonte) {
+      console.log(fonte[key])
+
+      if(this._isObjetoPuro(fonte[key]) && this._isObjetoPuro(alvo[key])) {
+        resultado[key] = this.mesclarDados(alvo[key], fonte[key]);
+      } else {
+        resultado[key] = fonte[key];
+      }   
+    }
+
+    return resultado;
   },
 
   async salvar(tabId, novosdados) {
-    if (!this._isTabIdValido(tabId) || typeof novosdados !== 'object' || novosdados === null || Array.isArray(novosdados)) return; // 1.8
-    // IRIA SUNSTITUIR ISSO ACIMA POR ISOBJETVALIDO
+    if (!this._isTabIdValido(tabId) || !this._isObjetoPuro(novosdados)) {
+      console.error(`[StorageManager] Dados inválidos.`, novosdados);
+      return false;
+    }
     const { nomeGaveta, base } = this._getConfig(tabId);
 
     // try {
@@ -61,7 +78,7 @@ const StorageManager = {
     //   const dados = res[nomeGaveta] || structuredClone(base);
     //   console.log('originais', dados)
 
-    //   const dadosAtualizados = this._mesclarDados(dados, novosdados);
+    //   const dadosAtualizados = this.mesclarDados(dados, novosdados);
     //   // const dados = res[nomeGaveta] || { ...base };
 
     //   // const dadosAtualizados = { ...dados, ...novosdados };

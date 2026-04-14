@@ -171,15 +171,6 @@ const BackgroundManager = {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return this._gerenciarMensagens(request, sender, sendResponse);
     });
-
-   const teste =  StorageManager._mesclarDados({
-      estaCorrendo: false,
-      idiomaOrigem: "en",
-      idiomaConfig: navigator.language.slice(0, 2) || "pt",
-      ultimaUrl: null
-      }, [1, 2, 3]);
-
-    console.log('resultado:', teste)
   },
 
   _validarPayload(request, schema) {
