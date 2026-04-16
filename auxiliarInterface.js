@@ -31,12 +31,12 @@ const PerformanceManager = {
     const agora = Date.now();
     const tempo15Dias = 15 * 24 * 60 * 60 * 1000;
 
-    const dadosHardware = await StorageManager.buscar('global', 'hardware');
+    const dadosHardware = await StorageManager.executarSeguro('buscar', 'global', 'hardware');
     
     if (agora - dadosHardware.ultimoTeste > tempo15Dias) {
       const novoPerfil = this.obterPerfil();
 
-      await StorageManager.salvar('global', {
+      await StorageManager.executarSeguro('salvar', 'global', {
         hardware: {
           perfil: novoPerfil,
           ultimoTeste: agora
@@ -80,18 +80,18 @@ const InterfaceManager = {
     };
 
     try {
-      this.tabIdAtual = await StorageManager.getTabId();
+      this.tabIdAtual = await StorageManager.executarSeguro('getTabId');
 
       await PerformanceManager.verificarEatualizarHardware();
 
-      const dados = await StorageManager.buscar(this.tabIdAtual);
+      const dados = await StorageManager.executarSeguro('buscar', this.tabIdAtual);
 
       this.el.selectTraducao.value = dados.idiomaConfig;
 
       if (dados.estaCorrendo || dados.jaConfirmou) {
         this._liberarInterfacePronta(dados.idiomaOrigem, dados.estaCorrendo);
       } else {
-        const ultimoIdioma = await StorageManager.buscar('global', 'ultimoIdiomaOrigem');
+        const ultimoIdioma = await StorageManager.executarSeguro('buscar', 'global', 'ultimoIdiomaOrigem');
 
         if (ultimoIdioma) {
           this.idiomaSugerido = ultimoIdioma;
@@ -118,22 +118,22 @@ const InterfaceManager = {
   async handleAlternarServico () {
     if (!this._validarIdiomas()) return;
 
-    const dadosAtuais = await StorageManager.buscar(this.tabIdAtual);
+    const dadosAtuais = await StorageManager.executarSeguro('buscar', this.tabIdAtual);
     const novoEstado = !dadosAtuais.estaCorrendo;
 
     if(novoEstado) {
-      await StorageManager.salvar(this.tabIdAtual, {
+      await StorageManager.executarSeguro('salvar', this.tabIdAtual, {
         estaCorrendo: true,
         idiomaOrigem: this.el.selectOrigem.value,
         idiomaConfig: this.el.selectTraducao.value,
         jaConfirmou: true
       });
 
-      await StorageManager.salvar('global', { ultimoIdiomaOrigem: this.el.selectOrigem.value }); //2.4
+      await StorageManager.executarSeguro('salvar', 'global', { ultimoIdiomaOrigem: this.el.selectOrigem.value }); //2.4
       this._setBotaoEstado(true);
       window.close();
     } else {
-      await StorageManager.salvar(this.tabIdAtual, { estaCorrendo: false });
+      await StorageManager.executarSeguro('salvar', this.tabIdAtual, { estaCorrendo: false });
       this._setBotaoEstado(false);
       window.close();
     }
@@ -141,8 +141,8 @@ const InterfaceManager = {
 
   _registrarEventos() {
     this.el.btnSim.addEventListener('click', async () => {
-      await StorageManager.salvar(this.tabIdAtual, { idiomaOrigem: this.idiomaSugerido, jaConfirmou: true });
-      await StorageManager.salvar('global', { ultimoIdiomaOrigem: this.idiomaSugerido });
+      await StorageManager.executarSeguro('salvar', this.tabIdAtual, { idiomaOrigem: this.idiomaSugerido, jaConfirmou: true });
+      await StorageManager.executarSeguro('salvar', 'global', { ultimoIdiomaOrigem: this.idiomaSugerido });
       this._liberarInterfacePronta(this.idiomaSugerido);
     });
 

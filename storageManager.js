@@ -11,8 +11,44 @@ const StorageManager = {
     ultimaUrl: null
   },
 
+  async executarSeguro(metodo, ...parametros) { // 1.2
+    const MAXTENTATIVAS = 3;
+    let ultimoErro = "Erro desconhecido";
+
+    console.log(metodo, parametros)
+
+    if (typeof this[metodo] !== 'function') {
+      throw new Error(`O método '${metodo}' não existe no StorageManager.`);
+    }
+
+    for (let tentativa = 1; tentativa <= MAXTENTATIVAS; tentativa++) {
+      try {
+        const resultado = await this[metodo](...parametros);
+
+        if (resultado !== false && resultado !== null) {
+          return resultado;
+        } else {
+          throw new Error(``);
+        }
+      } catch(e) {
+        ultimoErro = e.message;
+
+        if (tentativa < MAXTENTATIVAS) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+    }
+
+    throw new Error(`[Storage Error] Falha ao processar '${metodo}' após ${MAXTENTATIVAS} tentativas. Motivo: ${ultimoErro}`);
+  },
+
   _isTabIdValido(tabId) {
     if (tabId === 'global') return true;
+
+    if (tabId instanceof Promise) {
+      console.error("[StorageManager] Erro fatal: tabId chegou como Promise. Faltou o 'await'!");
+      return false;
+    }
 
     if (typeof tabId !== 'number' || !Number.isInteger(tabId) || tabId < 0) {
       console.warn(`[StorageManager] tabId inválido rejeitado:`, tabId);
@@ -45,16 +81,9 @@ const StorageManager = {
       ou adicionar itens, envie a lista completa e consolidada.
     */
 
-    if (!this._isObjetoPuro(alvo) || !this._isObjetoPuro(fonte)) {
-      console.error(`[StorageManager] Bloqueado: Tentativa de salvar dados inválidos`, fonte);
-      return false;
-    }
-
     const resultado = { ...alvo };
 
     for (const key in fonte) {
-      console.log(fonte[key])
-
       if(this._isObjetoPuro(fonte[key]) && this._isObjetoPuro(alvo[key])) {
         resultado[key] = this.mesclarDados(alvo[key], fonte[key]);
       } else {
@@ -70,21 +99,21 @@ const StorageManager = {
       console.error(`[StorageManager] Dados inválidos.`, novosdados);
       return false;
     }
+   
     const { nomeGaveta, base } = this._getConfig(tabId);
 
-    // try {
-    //   const res = await chrome.storage.local.get(nomeGaveta);
+    try {
+      const res = await chrome.storage.local.get(nomeGaveta);
+      const dados = res[nomeGaveta] || structuredClone(base); // 1.1
 
-    //   const dados = res[nomeGaveta] || structuredClone(base);
-    //   console.log('originais', dados)
+      const dadosAtualizados = this.mesclarDados(dados, novosdados);
+      await chrome.storage.local.set({ [nomeGaveta]: dadosAtualizados });
 
-    //   const dadosAtualizados = this.mesclarDados(dados, novosdados);
-    //   // const dados = res[nomeGaveta] || { ...base };
-
-    //   // const dadosAtualizados = { ...dados, ...novosdados };
-    //   // await chrome.storage.local.set({ [nomeGaveta]: dadosAtualizados });
-
-    // } catch(e) { console.error("Erro no salvar:", e); }
+      return true;
+    } catch(e) { 
+      console.error("Erro no salvar:", e); 
+      return false;
+    }
   },
 
   async buscar(tabId, keys) {
@@ -93,7 +122,7 @@ const StorageManager = {
 
     try {
       const res = await chrome.storage.local.get(nomeGaveta); 
-      const dadosAba = res[nomeGaveta] || { ...base }; // 1.7
+      const dadosAba = res[nomeGaveta] || structuredClone(base); // 1.7
       if (!keys) return dadosAba;
 
       if (typeof keys === 'string') return dadosAba[keys] !== undefined ? dadosAba[keys] : base[keys];
@@ -114,14 +143,24 @@ const StorageManager = {
   },
 
   async getTabId () {
-    const [tabId] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tabId?.id;
+    try {
+      const [tabId] = await chrome.tabs.query({ active: true, currentWindow: true });
+      return tabId?.id;
+    } catch(e) {
+      console.error("Erro no getTabId:", e);
+      return null;
+    }
   },
 
   async destruirGaveta(tabId) {
     if (!this._isTabIdValido(tabId) || tabId === 'global') return;
-    try { await chrome.storage.local.remove(`aba_${tabId}`); }
-    catch (e) { console.error(`Erro ao apagar a gaveta [${tabId}]`)};
+    try { 
+      await chrome.storage.local.remove(`aba_${tabId}`); 
+      return true;
+    } catch (e) {
+      console.error(`Erro ao apagar a gaveta [${tabId}]`);
+      return false;
+    };
   },
 }
 
@@ -129,4 +168,7 @@ globalThis.StorageManager = StorageManager;
 
 /*
   1.0 - "item &&" já descarta o null e undefined automaticamente!
+  1.1 - structuredClone faz a cópia profunda para não sujar a sua base
+  1.2 - StorageManager.executarSeguro('salvar', 15, { estaCorrendo: true })
+        ...parametros significa: "Pegue tudo o que sobrou (o 15 e o objeto) e empacote dentro de uma Array chamada parametros".
 */

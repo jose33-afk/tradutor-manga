@@ -97,7 +97,7 @@ const BackgroundManager = {
   },
 
   async _limparLixoDaAba(tabId) {
-    await StorageManager.destruirGaveta(tabId); // 1.8
+    await StorageManager.executarSeguro('destruirGaveta', tabId); // 1.8
   },
 
   async _faxinaGeral() {
@@ -137,28 +137,13 @@ const BackgroundManager = {
     });
   },
 
-  async _gerenciarStorageAba(tabId, metodo, dados = null) {
-    const MAXTENTATIVAS = 3;
-    let ultimoErro = "Erro desconhecido";
-    if (typeof StorageManager[metodo] !== 'function') {
-      throw new Error(`O método '${metodo}' não existe no StorageManager.`);
-    }
+  async _chamadorFuncSegura (tabId, metodo, dados) { // 2.9
+    const args = [metodo];
 
-    for (let tentativa = 1; tentativa <= MAXTENTATIVAS; tentativa++) {
-      try {
-        const resultado = await StorageManager[metodo](tabId, dados)
-        if (resultado) return resultado;
+    if (tabId !== undefined && tabId !== null) args.push(tabId);
+    if (dados !== undefined && dados !== null) args.push(dados); 
 
-      } catch(e) {
-        ultimoErro = e.message;
-
-        if (tentativa < MAXTENTATIVAS) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-    }
-  
-    throw new Error(`[Storage Error] Falha ao processar '${metodo}' após ${MAXTENTATIVAS} tentativas. Motivo: ${ultimoErro}`);
+    StorageManager.executarSeguro(...args);
   },
 
   init() {
@@ -210,7 +195,7 @@ const BackgroundManager = {
     const rotas = {
       "GERENCIAR_STORAGE_ABA": {
         isAsync: true,
-        funcao: this._gerenciarStorageAba.bind(this), // 2.3
+        funcao: this._chamadorFuncSegura.bind(this), // 2.3
         schema: { tabId: 'numero', metodo: 'string', dados: 'objeto' }, // 3.4
         argumentos: [ requestCopy.tabId, requestCopy.metodo, requestCopy.dados ], // 2.8
       },
@@ -340,4 +325,5 @@ BackgroundManager.init();
         [primeira, segunda] = ["Maçã", "Banana"]; de atribuicao de variaveis e nao aquela de pegar um valor especifico usando o nome da chave
         O JS faz: primeira = "Maçã" e segunda = "Banana"
   2.8 - VITAL: Segura a linha pro Chrome esperar o await!
+  2.9 - se nao for precisar de tabId ou dados tem que passar no schema o parametro como null, senao ele buga a ordem de insercao
 */
