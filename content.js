@@ -585,17 +585,12 @@ const ScrollManager = {
 
 async function salvarDados() {
   try {
-    const resposta = await chrome.runtime.sendMessage({
+   chrome.runtime.sendMessage({
       action: "GERENCIAR_STORAGE_ABA",
       escopo: "aba",
       metodo: "buscar",
-      dados: '' // Busca a gaveta inteira
-    }, (res) => console.log("Resposta do Buscar Global:", res));
-    console.log("O Background respondeu:", resposta);
-    
-    if (resposta?.sucesso) {
-      console.log('resposta:', )
-    }
+      dados: [ 'idioma', 'idiomaOrigem', 'norbu', 'ultimaUrl'] // String válida, deve passar.
+    }, (res) => console.log("🟢 BUSCAR STRING:", res));
   } catch (error) {
     console.error("Erro na comunicação:", error);
   }

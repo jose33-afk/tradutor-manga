@@ -11,35 +11,6 @@ const StorageManager = {
     ultimaUrl: null
   },
 
-  async executarSeguro(metodo, ...parametros) { // 1.2
-    const MAXTENTATIVAS = 3;
-    let ultimoErro = "Erro desconhecido";
-
-    if (typeof this[metodo] !== 'function') {
-      throw new Error(`O método '${metodo}' não existe no StorageManager.`);
-    }
-
-    for (let tentativa = 1; tentativa <= MAXTENTATIVAS; tentativa++) {
-      try {
-        const resultado = await this[metodo](...parametros);
-
-        if (resultado !== false && resultado !== null) {
-          return resultado;
-        } else {
-          throw new Error(``);
-        }
-      } catch(e) {
-        ultimoErro = e.message;
-
-        if (tentativa < MAXTENTATIVAS) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-    }
-
-    throw new Error(`[Storage Error] Falha ao processar '${metodo}' após ${MAXTENTATIVAS} tentativas. Motivo: ${ultimoErro}`);
-  },
-
   _isTabIdValido(tabId) {
     if (tabId === 'global') return true;
 
@@ -64,6 +35,39 @@ const StorageManager = {
   },
 
   _isObjetoPuro: (item) => item && typeof item === 'object' && !Array.isArray(item),
+
+  _avaliarResultadoMultiplo(resultado, chavesAusentes, totalKeys) {
+    console.log(resultado, chavesAusentes, totalKeys)
+  },
+
+  async executarSeguro(metodo, ...parametros) { // 1.2
+    const MAXTENTATIVAS = 3;
+    let ultimoErro = "Erro desconhecido";
+
+    if (typeof this[metodo] !== 'function') {
+      throw new Error(`O método '${metodo}' não existe no StorageManager.`);
+    }
+
+    for (let tentativa = 1; tentativa <= MAXTENTATIVAS; tentativa++) {
+      try {
+        const resultado = await this[metodo](...parametros);
+
+        if (resultado && resultado.sucesso) {
+          return resultado;
+        } else {
+          throw new Error(resultado ? resultado.erro : 'Falha interna na operação.');
+        }
+      } catch(e) {
+        ultimoErro = e.message;
+
+        if (tentativa < MAXTENTATIVAS) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+    }
+
+    throw new Error(`[Storage Error] Falha ao processar '${metodo}' após ${MAXTENTATIVAS} tentativas. Motivo: ${ultimoErro}`);
+  },
 
   mesclarDados(alvo, fonte) {
     /*
@@ -94,8 +98,7 @@ const StorageManager = {
 
   async salvar(tabId, novosdados) {
     if (!this._isTabIdValido(tabId) || !this._isObjetoPuro(novosdados)) {
-      console.error(`[StorageManager] Dados inválidos.`, novosdados);
-      return false;
+      return { sucesso: false, erro: `Dados inválidos: ${novosdados}`};
     }
    
     const { nomeGaveta, base } = this._getConfig(tabId);
@@ -107,45 +110,47 @@ const StorageManager = {
       const dadosAtualizados = this.mesclarDados(dados, novosdados);
       await chrome.storage.local.set({ [nomeGaveta]: dadosAtualizados });
 
-      return true;
+      return { sucesso: true };
     } catch(e) { 
-      console.error("Erro no salvar:", e); 
-      return false;
+      return { sucesso: false, erro: e.message }
     }
   },
 
   async buscar(tabId, keys) {
-    if(!this._isTabIdValido(tabId)) return null;
+    if(!this._isTabIdValido(tabId)) return { sucesso: false, erro: "TabId inválido." };
     const { nomeGaveta, base } = this._getConfig(tabId);
 
-    console.log(tabId, keys) //testes
+    console.log('ID:', tabId,'Solicitado:', keys) //testes
+
     try {
       const res = await chrome.storage.local.get(nomeGaveta); 
       const dadosAba = res[nomeGaveta] || structuredClone(base); // 1.7
-
-      console.log(dadosAba)
-      if (keys === 'tudo') return dadosAba;
-
-      console.log('passou')
-      console.log(dadosAba[keys] !== undefined ? dadosAba[keys] : base[keys])
-
-      if (typeof keys === 'string') return dadosAba[keys] !== undefined ? dadosAba[keys] : base[keys];
-
+      const _existeChave = (chave) => (chave in dadosAba) || (chave in base);
       
+      if (keys === 'tudo') return { sucesso: true, dados: dadosAba };
+
+      if (typeof keys === 'string') {
+        if (!_existeChave(keys)) {
+          return { sucesso: false, erro: `A chave '${keys}' não existe no sistema.` };
+        }
+        return { sucesso: true, dados: (keys in dadosAba) ? dadosAba[keys] : base[keys] };
+      };
 
       if (Array.isArray(keys)) {
         const resultado = {};
-        keys.forEach(k => {
-          resultado[k] = dadosAba[k] !== undefined ? dadosAba[k] : base[k];
-        });
+        const chavesAusentes = [];
 
-        console.log('resultado', resultado) // Nao chegou aqui
-        return resultado;
+        for (const keyAtual of keys) {
+          if (!_existeChave(keyAtual)) chavesAusentes.push(keyAtual);
+          else resultado[keyAtual] = (keyAtual in dadosAba) ? dadosAba[keyAtual] : base[keyAtual];
+        }
+  
+        return this._avaliarResultadoMultiplo(resultado, chavesAusentes, keys.length);
       }
-      return dadosAba;
+
+      return { sucesso: false, erro: "Formato de keys não reconhecido." };
     } catch(e) { 
-      console.error("Erro no buscar:", e); 
-      return null;
+      return { sucesso: false, erro: e.message };
     }
   },
 
@@ -160,13 +165,15 @@ const StorageManager = {
   },
 
   async destruirGaveta(tabId) {
-    if (!this._isTabIdValido(tabId) || tabId === 'global') return;
+    if (!this._isTabIdValido(tabId) || tabId === 'global') {
+      return { sucesso: false, erro: "TabId inválido ou tentativa de destruir banco global." };
+    }
+
     try { 
       await chrome.storage.local.remove(`aba_${tabId}`); 
-      return true;
+      return { sucesso: true };
     } catch (e) {
-      console.error(`Erro ao apagar a gaveta [${tabId}]`);
-      return false;
+      return { sucesso: false, erro: e.message };
     };
   },
 }
@@ -178,4 +185,8 @@ globalThis.StorageManager = StorageManager;
   1.1 - structuredClone faz a cópia profunda para não sujar a sua base
   1.2 - StorageManager.executarSeguro('salvar', 15, { estaCorrendo: true })
         ...parametros significa: "Pegue tudo o que sobrou (o 15 e o objeto) e empacote dentro de uma Array chamada parametros".
+  1.3 - O ?? (Nullish Coalescing) pega o valor da esquerda se ele não for null/undefined.
+        Tenta pegar o que está na gaveta da aba. Se o que estiver lá for um dado real (mesmo que seja false ou 0), usa ele. 
+        Se a gaveta estiver vazia (null ou undefined), aí sim você pega o valor padrão que está na base."
+  1.4 - Mesma coisa que if (valor === null || valor === undefined)
 */

@@ -31,9 +31,9 @@ const PerformanceManager = {
     const agora = Date.now();
     const tempo15Dias = 15 * 24 * 60 * 60 * 1000;
 
-    const dadosHardware = await StorageManager.executarSeguro('buscar', 'global', 'hardware');
+    const { dados: dadosHardware } = await StorageManager.executarSeguro('buscar', 'global', 'hardware'); // 2.6
     
-    if (agora - dadosHardware.ultimoTeste > tempo15Dias) {
+    if ((!dadosHardware || agora - (dadosHardware.ultimoTeste || 0) > tempo15Dias)) {
       const novoPerfil = this.obterPerfil();
 
       await StorageManager.executarSeguro('salvar', 'global', {
@@ -80,18 +80,18 @@ const InterfaceManager = {
     };
 
     try {
-      this.tabIdAtual = await StorageManager.executarSeguro('getTabId');
+      this.tabIdAtual = await StorageManager.getTabId();
 
       await PerformanceManager.verificarEatualizarHardware();
 
-      const dados = await StorageManager.executarSeguro('buscar', this.tabIdAtual);
+      const { dados } = await StorageManager.executarSeguro('buscar', this.tabIdAtual, 'tudo');
 
       this.el.selectTraducao.value = dados.idiomaConfig;
 
       if (dados.estaCorrendo || dados.jaConfirmou) {
         this._liberarInterfacePronta(dados.idiomaOrigem, dados.estaCorrendo);
       } else {
-        const ultimoIdioma = await StorageManager.executarSeguro('buscar', 'global', 'ultimoIdiomaOrigem');
+        const { dados: ultimoIdioma } = await StorageManager.executarSeguro('buscar', 'global', 'ultimoIdiomaOrigem');
 
         if (ultimoIdioma) {
           this.idiomaSugerido = ultimoIdioma;
@@ -118,7 +118,7 @@ const InterfaceManager = {
   async handleAlternarServico () {
     if (!this._validarIdiomas()) return;
 
-    const dadosAtuais = await StorageManager.executarSeguro('buscar', this.tabIdAtual);
+    const { dados: dadosAtuais } = await StorageManager.executarSeguro('buscar', this.tabIdAtual, 'tudo');
     const novoEstado = !dadosAtuais.estaCorrendo;
 
     if(novoEstado) {
@@ -248,4 +248,12 @@ document.addEventListener('DOMContentLoaded', () => InterfaceManager.init());
   2.3 - Se o executeScript falhar, libera o select manual para o usuário não travar
   2.4 - Salva globalmente para as próximas abas
   2.5 - isso e um date.now() potente, e e tipo um cronometro que comeca do zero.
+  2.6 - A esquerda do : É o nome da "gaveta" (chave) que já existe dentro do objeto que você recebeu.
+        A direita do : É o nome da "variável" nova que você quer criar para guardar aquele valor
+
+        // Criando um objeto (O valor vai para a chave):
+        const obj = { chave: valor };
+
+        // Desestruturando (O valor sai da chave para a variável):
+        const { chave: variavel } = obj;
 */

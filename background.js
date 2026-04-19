@@ -147,8 +147,10 @@ const BackgroundManager = {
     if (tabId !== undefined && tabId !== null) args.push(tabId);
     if (dados !== undefined && dados !== null) args.push(dados); 
 
-    const res = await StorageManager.executarSeguro(...args);
-    console.log(res)
+    const resultado = await StorageManager.executarSeguro(...args);
+    if (!resultado.sucesso) throw new Error(resultado.erro || `Falha ao executar o método ${metodo}.`);
+
+    return resultado;
   },
 
   init() {
