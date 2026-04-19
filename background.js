@@ -89,11 +89,15 @@ const Banco = {
 
 const BackgroundManager = {
   Validador: {
-    string: (val) => typeof val === 'string' && val.trim() !== '',
-    numero: (val) => typeof val === 'number' && !isNaN(val),
-    array: (val) => Array.isArray(val) && val.length > 0,
-    objeto: (val) => typeof val === 'object' && val !== null && !Array.isArray(val) && Object.keys(val).length > 0,
-    booleano: (val) => typeof val === 'boolean'
+    string(val) { return typeof val === 'string' && val.trim() !== ''; },
+    numero(val) { return typeof val === 'number' && !isNaN(val); },
+    array(val) { return Array.isArray(val) && val.length > 0; },
+    objeto(val) { return typeof val === 'object' && val !== null && !Array.isArray(val) && Object.keys(val).length > 0; },
+    booleano(val) { return typeof val === 'boolean'; },
+  
+    storageBuscar(val) { return this.string(val) || (this.array(val) && val.every(item => this.string(item))); },
+    escopoStorage(val) { return val === 'global' || val === 'aba'; },  
+    definido(val) { return val !== undefined && val !== null; }, // 3.0
   },
 
   async _limparLixoDaAba(tabId) {
@@ -143,7 +147,8 @@ const BackgroundManager = {
     if (tabId !== undefined && tabId !== null) args.push(tabId);
     if (dados !== undefined && dados !== null) args.push(dados); 
 
-    StorageManager.executarSeguro(...args);
+    const res = await StorageManager.executarSeguro(...args);
+    console.log(res)
   },
 
   init() {
@@ -163,9 +168,9 @@ const BackgroundManager = {
 
     for (const [chave, tipo] of Object.entries(schema)) { // 2.6 | 2.7
       const valorRecebido = request[chave];
-      const verificador = this.Validador[tipo];
+      const verificador = this.Validador[tipo]; // 3.1
       
-      if (!verificador || !verificador(valorRecebido)) {
+      if (!verificador || !this.Validador[tipo](valorRecebido)) { // 3.2
         return `O parâmetro '${chave}' está ausente ou não é um '${tipo}' válido.`;
       }
     }
@@ -176,8 +181,10 @@ const BackgroundManager = {
   _gerenciarMensagens(request, sender, sendResponse) {
     const requestCopy = {
       ...request,
-      tabId: sender.tab?.id
+      tabId: request.escopo === 'global' ? 'global' : sender.tab?.id
     }
+
+    console.log(requestCopy)
 
     /* 
       =========================================================================
@@ -192,11 +199,23 @@ const BackgroundManager = {
       ========================================================================= 
     */
 
+
+    // EU ESTAVA AQUI TENTANDO RESOLVER A PARADA DE SE PRECISA DO ID OU E BUSCA GROBAL
+    // E APOS RESOLVER E TESTAR ISSO TEM QUE IR LA NO STORAGE E PADRONIZAR O RETORNO. PQ
+    // EU PESQUISIE ESTACORRENDO E O RESULTADO FOI FALSE, E O RETRY PESOU QUE A FUNCAO FAILHOU.
+    
     const rotas = {
       "GERENCIAR_STORAGE_ABA": {
         isAsync: true,
         funcao: this._chamadorFuncSegura.bind(this), // 2.3
-        schema: { tabId: 'numero', metodo: 'string', dados: 'objeto' }, // 3.4
+        schema: { 
+          escopo: 'escopoStorage',
+          metodo: 'string',
+          dados: {
+            salvar: 'objeto',
+            buscar: 'storageBuscar',
+          }[requestCopy.metodo] || 'definido',
+        }, // 3.4
         argumentos: [ requestCopy.tabId, requestCopy.metodo, requestCopy.dados ], // 2.8
       },
     }
@@ -229,6 +248,7 @@ const BackgroundManager = {
   async _executorUniversal(funcao, argumentos, sendResponse) {
     try {
       const resultado = await funcao(...argumentos);
+      console.log('resultado:', resultado)
       sendResponse({ sucesso: true, dados: resultado, erro:null });
     } catch(e) {
       sendResponse({ sucesso: false, dados:null, erro: e.message });
@@ -326,4 +346,8 @@ BackgroundManager.init();
         O JS faz: primeira = "Maçã" e segunda = "Banana"
   2.8 - VITAL: Segura a linha pro Chrome esperar o await!
   2.9 - se nao for precisar de tabId ou dados tem que passar no schema o parametro como null, senao ele buga a ordem de insercao
+  3.0 - Exige que você mande o dado. Só bloqueia se faltar (undefined) ou for null.
+  3.1 - Se o 'tipo' não existir (ex: erro de digitação no schema) ele vai ser barrado entrando no if,
+  3.2 - tenho que chama-lo assim invez de usar a variavel verificador pq tem metodos dentro do Validador que usam this, E apartir do momento
+        que coloco a funcao dentro da vartivel ela perde o 'this'. 
 */

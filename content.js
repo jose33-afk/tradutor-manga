@@ -583,8 +583,26 @@ const ScrollManager = {
   },
 }
 
-//
-//setInterval(() => salvarDados(), 10000)
+async function salvarDados() {
+  try {
+    const resposta = await chrome.runtime.sendMessage({
+      action: "GERENCIAR_STORAGE_ABA",
+      escopo: "aba",
+      metodo: "buscar",
+      dados: '' // Busca a gaveta inteira
+    }, (res) => console.log("Resposta do Buscar Global:", res));
+    console.log("O Background respondeu:", resposta);
+    
+    if (resposta?.sucesso) {
+      console.log('resposta:', )
+    }
+  } catch (error) {
+    console.error("Erro na comunicação:", error);
+  }
+}
+
+
+setTimeout(() => salvarDados(), 10000)
  //Pausada para melhorias na seguranca do StorageManager
 //PipelineManga.executarTrabalho();
 

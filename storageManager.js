@@ -15,8 +15,6 @@ const StorageManager = {
     const MAXTENTATIVAS = 3;
     let ultimoErro = "Erro desconhecido";
 
-    console.log(metodo, parametros)
-
     if (typeof this[metodo] !== 'function') {
       throw new Error(`O método '${metodo}' não existe no StorageManager.`);
     }
@@ -120,12 +118,20 @@ const StorageManager = {
     if(!this._isTabIdValido(tabId)) return null;
     const { nomeGaveta, base } = this._getConfig(tabId);
 
+    console.log(tabId, keys) //testes
     try {
       const res = await chrome.storage.local.get(nomeGaveta); 
       const dadosAba = res[nomeGaveta] || structuredClone(base); // 1.7
-      if (!keys) return dadosAba;
+
+      console.log(dadosAba)
+      if (keys === 'tudo') return dadosAba;
+
+      console.log('passou')
+      console.log(dadosAba[keys] !== undefined ? dadosAba[keys] : base[keys])
 
       if (typeof keys === 'string') return dadosAba[keys] !== undefined ? dadosAba[keys] : base[keys];
+
+      
 
       if (Array.isArray(keys)) {
         const resultado = {};
@@ -133,6 +139,7 @@ const StorageManager = {
           resultado[k] = dadosAba[k] !== undefined ? dadosAba[k] : base[k];
         });
 
+        console.log('resultado', resultado) // Nao chegou aqui
         return resultado;
       }
       return dadosAba;
