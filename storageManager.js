@@ -40,6 +40,38 @@ const StorageManager = {
     console.log(resultado, chavesAusentes, totalKeys)
   },
 
+  /**
+   * Verifica se a gaveta existe e se contém todas as chaves definidas na 'base'.
+   * Injeta chaves ausentes e salva no banco caso detecte inconsistências.
+   * @param {string} nomeGaveta - Identificador único no storage (ex: 'aba_123').
+   * @param {Object|null} dadosAtuais - Dados brutos recuperados do chrome.storage.
+   * @param {Object} base - Objeto de referência com os valores e chaves padrão.
+   * @returns {Promise<Object>} Dados processados, completos e sincronizados.
+   */
+  async _aplicarAutoCura(nomeGaveta, dadosAtuais, base) {
+    console.log(nomeGaveta, dadosAtuais)
+    let dadosAtualizados = dadosAtuais;
+    let bancoPrecisouDeCura = false;
+
+    if (!dadosAtuais) {
+      dadosAtualizados = structuredClone(base);
+      bancoPrecisouDeCura = true;
+    } else {
+      for (const key in base) {
+        if (!(key in dadosAtualizados)) {
+          dadosAtualizados[key] = structuredClone(base[key]);
+          bancoPrecisouDeCura = true;
+        }
+      }
+    }
+
+    if (bancoPrecisouDeCura) {
+      await chrome.storage.local.set({ [nomeGaveta]: dadosAtualizados });
+    }
+
+    return dadosAtualizados;
+  },
+
   async executarSeguro(metodo, ...parametros) { // 1.2
     const MAXTENTATIVAS = 3;
     let ultimoErro = "Erro desconhecido";
@@ -98,14 +130,14 @@ const StorageManager = {
 
   async salvar(tabId, novosdados) {
     if (!this._isTabIdValido(tabId) || !this._isObjetoPuro(novosdados)) {
-      return { sucesso: false, erro: `Dados inválidos: ${novosdados}`};
+      return { sucesso: false, erro: `Dados inválidos: ${JSON.stringify(novosdados)}`}; // 1.5 
     }
    
     const { nomeGaveta, base } = this._getConfig(tabId);
 
     try {
       const res = await chrome.storage.local.get(nomeGaveta);
-      const dados = res[nomeGaveta] || structuredClone(base); // 1.1
+      const dados = await this._aplicarAutoCura(nomeGaveta, res[nomeGaveta], base); // 1.1
 
       const dadosAtualizados = this.mesclarDados(dados, novosdados);
       await chrome.storage.local.set({ [nomeGaveta]: dadosAtualizados });
@@ -124,7 +156,7 @@ const StorageManager = {
 
     try {
       const res = await chrome.storage.local.get(nomeGaveta); 
-      const dadosAba = res[nomeGaveta] || structuredClone(base); // 1.7
+      const dadosAba = await this._aplicarAutoCura(nomeGaveta, res[nomeGaveta], base); // 1.7
       const _existeChave = (chave) => (chave in dadosAba) || (chave in base);
       
       if (keys === 'tudo') return { sucesso: true, dados: dadosAba };
@@ -136,6 +168,7 @@ const StorageManager = {
         return { sucesso: true, dados: (keys in dadosAba) ? dadosAba[keys] : base[keys] };
       };
 
+      // Falta prosseguir com testes e fazer a funcao avaliarResultadosMultiplos
       if (Array.isArray(keys)) {
         const resultado = {};
         const chavesAusentes = [];
@@ -189,4 +222,5 @@ globalThis.StorageManager = StorageManager;
         Tenta pegar o que está na gaveta da aba. Se o que estiver lá for um dado real (mesmo que seja false ou 0), usa ele. 
         Se a gaveta estiver vazia (null ou undefined), aí sim você pega o valor padrão que está na base."
   1.4 - Mesma coisa que if (valor === null || valor === undefined)
+  1.5 - Usei JSON.stringify pra imprimir bonito se der erro
 */

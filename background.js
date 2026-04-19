@@ -188,19 +188,19 @@ const BackgroundManager = {
 
     console.log(requestCopy)
 
+   
     /* 
       =========================================================================
       DOCUMENTAÇÃO TÉCNICA: CONTRATO DE INTERFACE (SCHEMA)
       =========================================================================
-       O 'schema' atua como um contrato de dados estrito. Propriedades declaradas
-       são obrigatórias; propriedades omitidas são tratadas como opcionais.
-       
-       1. NOMENCLATURA: As chaves do schema devem ser idênticas às do request.
-       2. OPCIONAIS: Para dados facultativos, omita a chave no schema.
-       3. RIGIDEZ: Regras ativas (ex: 'objeto') bloqueiam null, {} ou arrays.
+        O 'schema' atua como um contrato de dados estrito. Propriedades declaradas
+        são obrigatórias; propriedades omitidas são tratadas como opcionais.
+        
+        1. NOMENCLATURA: As chaves do schema devem ser idênticas às do request.
+        2. OPCIONAIS: Para dados facultativos, omita a chave no schema.
+        3. RIGIDEZ: Regras ativas (ex: 'objeto') bloqueiam null, {} ou arrays.
       ========================================================================= 
     */
-
 
     // EU ESTAVA AQUI TENTANDO RESOLVER A PARADA DE SE PRECISA DO ID OU E BUSCA GROBAL
     // E APOS RESOLVER E TESTAR ISSO TEM QUE IR LA NO STORAGE E PADRONIZAR O RETORNO. PQ
