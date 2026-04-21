@@ -4,11 +4,21 @@ const StorageManager = {
     hardware: { perfil: "NORMAL", ultimoTeste: 0 }
   },
 
-  variaveisBase: {
-    estaCorrendo: false,
-    idiomaOrigem: "en",
-    idiomaConfig: navigator.language.slice(0, 2) || "pt",
-    ultimaUrl: null
+  // variaveisBase: {
+  //   estaCorrendo: false,
+  //   idiomaOrigem: "en",
+  //   idiomaConfig: navigator.language.slice(0, 2) || "pt",
+  //   ultimaUrl: null
+  // },
+  variaveisBase:{
+    temaEscuro: true, 
+    idioma: "pt", 
+    volume: 50, 
+    ativado: true,
+    ultimaUrl: null,
+    // Chaves de volume para estressar a resiliência (Total = 20 chaves)
+    k1: 1, k2: 2, k3: 3, k4: 4, k5: 5, k6: 6, k7: 7, k8: 8, k9: 9, k10: 10,
+    k11: 11, k12: 12, k13: 13, k14: 14, k15: 15
   },
 
   _isTabIdValido(tabId) {
@@ -37,7 +47,40 @@ const StorageManager = {
   _isObjetoPuro: (item) => item && typeof item === 'object' && !Array.isArray(item),
 
   _avaliarResultadoMultiplo(resultado, chavesAusentes, totalKeys) {
-    console.log(resultado, chavesAusentes, totalKeys)
+    const totalErros = chavesAusentes.length;
+    const totalSucessos = totalKeys - totalErros;
+
+    if (totalSucessos === 0) return { sucesso: false, erro: `Nenhuma das ${totalKeys} chaves solicitadas foi encontrada.` };
+    
+    const regrasTolerancia = [
+      { max: 10, taxa: 0.60 }, 
+      { max: 20, taxa: 0.45 }, 
+      { max: 40, taxa: 0.30 },
+      { max: Infinity, taxa: 0.15 } 
+    ];
+
+    const MIN_ITENS_CALCULO = 4;
+    const LIMITE_TOLERANCIA = regrasTolerancia.find(regra => totalKeys < regra.max).taxa;
+
+    if (totalKeys >= MIN_ITENS_CALCULO) {
+      const taxaDeErro = totalErros / totalKeys;
+     
+      if (taxaDeErro > LIMITE_TOLERANCIA) {
+        return { 
+          sucesso: false, 
+          erro: `Taxa de erro crítica: ${totalErros} de ${totalKeys} chaves (${(taxaDeErro * 100).toFixed(0)}%) não existem.` 
+        };
+      }
+
+      return { 
+        sucesso: true, dados: resultado, alerta: totalErros > 0 ? `Chaves não encontradas: ${chavesAusentes.join(', ')}` : null
+      };
+    }
+
+    return { 
+      sucesso: true, dados: resultado, 
+      alerta: totalErros > 0 ? `Chaves não encontradas: ${chavesAusentes.join(', ')}` : null
+    };
   },
 
   /**
@@ -49,7 +92,6 @@ const StorageManager = {
    * @returns {Promise<Object>} Dados processados, completos e sincronizados.
    */
   async _aplicarAutoCura(nomeGaveta, dadosAtuais, base) {
-    console.log(nomeGaveta, dadosAtuais)
     let dadosAtualizados = dadosAtuais;
     let bancoPrecisouDeCura = false;
 
@@ -73,7 +115,7 @@ const StorageManager = {
   },
 
   async executarSeguro(metodo, ...parametros) { // 1.2
-    const MAXTENTATIVAS = 3;
+    const MAXTENTATIVAS = 2;
     let ultimoErro = "Erro desconhecido";
 
     if (typeof this[metodo] !== 'function') {
@@ -98,7 +140,7 @@ const StorageManager = {
       }
     }
 
-    throw new Error(`[Storage Error] Falha ao processar '${metodo}' após ${MAXTENTATIVAS} tentativas. Motivo: ${ultimoErro}`);
+    throw new Error(`Falha ao processar '${metodo}' Motivo: ${ultimoErro}`);
   },
 
   mesclarDados(alvo, fonte) {
@@ -132,7 +174,7 @@ const StorageManager = {
     if (!this._isTabIdValido(tabId) || !this._isObjetoPuro(novosdados)) {
       return { sucesso: false, erro: `Dados inválidos: ${JSON.stringify(novosdados)}`}; // 1.5 
     }
-   
+
     const { nomeGaveta, base } = this._getConfig(tabId);
 
     try {
@@ -152,7 +194,7 @@ const StorageManager = {
     if(!this._isTabIdValido(tabId)) return { sucesso: false, erro: "TabId inválido." };
     const { nomeGaveta, base } = this._getConfig(tabId);
 
-    console.log('ID:', tabId,'Solicitado:', keys) //testes
+    console.log('ID:', tabId,'Solicitado:', keys);
 
     try {
       const res = await chrome.storage.local.get(nomeGaveta); 
@@ -168,7 +210,6 @@ const StorageManager = {
         return { sucesso: true, dados: (keys in dadosAba) ? dadosAba[keys] : base[keys] };
       };
 
-      // Falta prosseguir com testes e fazer a funcao avaliarResultadosMultiplos
       if (Array.isArray(keys)) {
         const resultado = {};
         const chavesAusentes = [];
@@ -212,6 +253,8 @@ const StorageManager = {
 }
 
 globalThis.StorageManager = StorageManager;
+
+
 
 /*
   1.0 - "item &&" já descarta o null e undefined automaticamente!

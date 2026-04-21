@@ -585,19 +585,20 @@ const ScrollManager = {
 
 async function salvarDados() {
   try {
-   chrome.runtime.sendMessage({
-      action: "GERENCIAR_STORAGE_ABA",
-      escopo: "aba",
-      metodo: "buscar",
-      dados: 'idiomaOrigem'//[ 'idioma', 'idiomaOrigem', 'norbu', 'ultimaUrl'] // String válida, deve passar.
-    }, (res) => console.log("🟢 BUSCAR STRING:", res));
+        // Tentando salvar um Array onde deveria ser um Objeto
+    chrome.runtime.sendMessage({
+      action: "GERENCIAR_STORAGE_ABA", escopo: "aba", metodo: "salvar",
+      dados: ["Não sou um objeto", 123] 
+    }, (res) => console.log("🛡️ VALIDADOR (Barrando lixo):", res));
   } catch (error) {
     console.error("Erro na comunicação:", error);
   }
 }
 
 
-setTimeout(() => salvarDados(), 10000)
+
+
+setTimeout(() => salvarDados(), 2000)
  //Pausada para melhorias na seguranca do StorageManager
 //PipelineManga.executarTrabalho();
 

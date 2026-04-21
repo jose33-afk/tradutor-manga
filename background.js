@@ -147,10 +147,7 @@ const BackgroundManager = {
     if (tabId !== undefined && tabId !== null) args.push(tabId);
     if (dados !== undefined && dados !== null) args.push(dados); 
 
-    const resultado = await StorageManager.executarSeguro(...args);
-    if (!resultado.sucesso) throw new Error(resultado.erro || `Falha ao executar o método ${metodo}.`);
-
-    return resultado;
+    return await StorageManager.executarSeguro(...args);
   },
 
   init() {
@@ -186,9 +183,6 @@ const BackgroundManager = {
       tabId: request.escopo === 'global' ? 'global' : sender.tab?.id
     }
 
-    console.log(requestCopy)
-
-   
     /* 
       =========================================================================
       DOCUMENTAÇÃO TÉCNICA: CONTRATO DE INTERFACE (SCHEMA)
@@ -201,10 +195,6 @@ const BackgroundManager = {
         3. RIGIDEZ: Regras ativas (ex: 'objeto') bloqueiam null, {} ou arrays.
       ========================================================================= 
     */
-
-    // EU ESTAVA AQUI TENTANDO RESOLVER A PARADA DE SE PRECISA DO ID OU E BUSCA GROBAL
-    // E APOS RESOLVER E TESTAR ISSO TEM QUE IR LA NO STORAGE E PADRONIZAR O RETORNO. PQ
-    // EU PESQUISIE ESTACORRENDO E O RESULTADO FOI FALSE, E O RETRY PESOU QUE A FUNCAO FAILHOU.
     
     const rotas = {
       "GERENCIAR_STORAGE_ABA": {
@@ -250,8 +240,12 @@ const BackgroundManager = {
   async _executorUniversal(funcao, argumentos, sendResponse) {
     try {
       const resultado = await funcao(...argumentos);
-      console.log('resultado:', resultado)
-      sendResponse({ sucesso: true, dados: resultado, erro:null });
+
+      if (this.Validador.objeto(resultado) && this.Validador.booleano(resultado.sucesso)) {
+        sendResponse(resultado); 
+      } else {
+        sendResponse({ sucesso: true, dados: resultado, erro: null });
+      }
     } catch(e) {
       sendResponse({ sucesso: false, dados:null, erro: e.message });
     }
