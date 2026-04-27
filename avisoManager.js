@@ -172,6 +172,16 @@ export const AvisoManager = {
   },
 
   mostrarStatus(estado, textoCustomizado = null) {
+    if (estado === 'ocultar') {
+      const avisoExistente = document.getElementById('am-toast');
+      
+      if (avisoExistente) {
+        avisoExistente.classList.remove('ativo'); 
+        setTimeout(() => avisoExistente.remove(), 400); 
+      }
+      return; 
+    }
+
     this._injetarCSS();
     let aviso = document.getElementById('am-toast');
 
@@ -216,9 +226,11 @@ export const AvisoManager = {
         if (estado === 'erro') {
           try { 
             chrome.runtime.sendMessage({
-              action: 'ATUALIZAR_STORAGE_ABA',
-              novosDados: { estaCorrendo: false }
-            });
+              action: "GERENCIAR_STORAGE_ABA",
+              escopo: "aba",
+              metodo: "salvar",
+              dados: { estaCorrendo: false }
+            })
           } catch(e) {
 
           }

@@ -1,6 +1,20 @@
 const Utils = {
   config: null,
 
+  async gerenciarStorage(metodo, dados, escopo) {
+    try {
+      return await chrome.runtime.sendMessage({
+        action: "GERENCIAR_STORAGE_ABA",
+        escopo: escopo,
+        metodo: metodo,
+        dados: dados
+      });
+    } catch (e) {
+      console.warn("[UrlMonitor] Falha na comunicação de Storage:", e);
+      return { sucesso: false, dados: null };
+    }
+  },
+
   esperar: (ms) => new Promise(res => setTimeout(res, ms)),
 
   debounce: (func, delay) => { // 1.4
@@ -76,34 +90,15 @@ const PipelineManga = {
   //   }
   // },
 
-  _assinaturaCapitulo: null, // 3.2
-
-  async _gerarAssinaturaDOM(maxTentativas = 10, delayMs = 500) { // 10 === 5s
-    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
-      const ArrayImgs = Array.from(document.querySelectorAll('img')).filter(
-        img => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450
-      );
-    
-      if (ArrayImgs.length >= 3) {
-       this._assinaturaCapitulo = ArrayImgs.slice(0, 2).map(img => img.src.replace(/^blob:/, '')).join('|');
-
-       if (this._assinaturaCapitulo?.length > 10) return true;
-      }
-
-      await Utils.esperar(delayMs);
-    }
-
-    this.resetarPipeline();
-    return false;
-  },
 
 
-  async executarTrabalho() {
+  async init() {
     if (!EventManager.permissaoParaRodar) return;
     if (this.estado.capituloFinalizado) return;
 
     if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
     
+  
 
   //   if (!this.estado.scrollConcluido) {
   //     const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
@@ -128,8 +123,6 @@ const PipelineManga = {
 
 
 }
-
-
 
 const ImageScanner = {
   _AVISOS: null,
@@ -298,8 +291,11 @@ const ImageScanner = {
 const UrlMonitor = {
   _intervaloId: null,
   _cacheUrlLimpa: null,
+  _cacheAssinatura: null,
+  _AVISOS: null,
+  _carregouDOM: null,
 
-  _limparUlr(urlBruta) {
+  _limparUrl(urlBruta) {
     try {
       if (urlBruta.includes('mangadex.org')) return urlBruta.replace(/\/\d+\/?$/, ''); // 1.8
       return urlBruta;
@@ -308,32 +304,107 @@ const UrlMonitor = {
     }
   },
 
-  init() {
-    if (this._intervaloId) clearInterval(this._intervaloId); // 1.9
-
-    this._cacheUrlLimpa = this._limparUlr(location.href);
+  async _gerarAssinaturaDOM(maxTentativas = 10, delayMs = 500) { // 10 === 5s
+    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+      const ArrayImgs = Array.from(document.getElementsByTagName('img')).filter(
+        img => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450
+      );
     
-    this._intervaloId = setInterval(() => {
-      const urlAtualLimpa = this._limparUlr(location.href);
+      if (ArrayImgs.length >= 3) {
+        let impressao = ArrayImgs.slice(0, 2)
+            .map(img => {
+              return img.src.replace(/^blob:/, '').split('/').pop().substring(0, 40) // 3.2
+            }).join('');
 
-      if (urlAtualLimpa !== this._cacheUrlLimpa) {
-        this._cacheUrlLimpa = urlAtualLimpa;
+        if (impressao.length > 10) return impressao;
+      }
+      await Utils.esperar(delayMs);
+    }
 
-        EventManager.permissaoParaRodar = false;
-      
-        try {
-          chrome.runtime.sendMessage({
-            action: 'ATUALIZAR_STORAGE_ABA', 
-            novosDados: { 
-              ultimaUrl: urlAtualLimpa,
-              jaConfirmou: false,  
-              estaCorrendo: false  
-            }
-          });
-        } catch (e) {};
+    PipelineManga.resetarPipeline();
+    return null;
+  },
+
+  async init() {
+    if (this._intervaloId) clearInterval(this._intervaloId);
+    this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
+
+    this._cacheUrlLimpa = this._limparUrl(location.href);
+    this._cacheAssinatura = await this._gerarAssinaturaDOM();
+    
+    Utils.gerenciarStorage("salvar", { 
+      cacheUrl: this._cacheUrlLimpa, 
+      cacheAssinatura: this._cacheAssinatura 
+    }, "aba");
+
+    this._iniciarVigia();
+  },
+
+  _iniciarVigia() {
+    this._intervaloId = setInterval(async () => {
+      const urlAtual = this._limparUrl(location.href);
+      const mudouUrl = urlAtual !== this._cacheUrlLimpa;
+
+      let mudouAssinatura = false;
+      let assinaturaAtual = null;
+
+      if (!mudouUrl) {
+        assinaturaAtual = await this._gerarAssinaturaDOM();
+        mudouAssinatura = (assinaturaAtual && this._cacheAssinatura) 
+            ? (assinaturaAtual !== this._cacheAssinatura)
+            : false;
+      }
+
+      if (mudouUrl || mudouAssinatura) {
+        if (mudouUrl && !assinaturaAtual) assinaturaAtual = await this._gerarAssinaturaDOM();
+
+        this._lidarComMudanca(urlAtual, assinaturaAtual);
       }
     }, 1000);
-  }
+  },
+
+  async _lidarComMudanca(novaUrl, novaAssinatura) {
+    clearInterval(this._intervaloId);
+
+    this._cacheUrlLimpa = novaUrl;
+    this._cacheAssinatura = novaAssinatura;
+
+    Utils.gerenciarStorage("salvar", { 
+        cacheUrl: this._cacheUrlLimpa, 
+        cacheAssinatura: this._cacheAssinatura 
+    }, "aba");
+
+    const resposta = await Utils.gerenciarStorage("buscar", ['idiomaConfig', 'idiomaOrigem'], "aba");
+
+    console.log(resposta)
+
+    const config = (resposta && resposta.sucesso) ? resposta.dados : {};
+
+    if (!resposta.sucesso || !config.idiomaConfig) {
+      await chrome.runtime.sendMessage({
+        action: "GERENCIAR_STORAGE_ABA",
+        escopo: "aba",
+        metodo: "salvar",
+        dados: { jaConfirmou:false, estaCorrendo: false }
+      });
+
+      this._AVISOS.mostrarStatus(
+        'aviso', 
+        'Configure e confirme os idiomas na extensão para continuar!'
+      );
+
+       await Utils.esperar(2500);
+      this._AVISOS.mostrarStatus('ocultar')
+
+      PipelineManga.resetarPipeline();
+      this._iniciarVigia();
+      return;
+    }
+
+    // Antes de prosseguir terminar de migrar pro Utils.gerenciarStorage().
+    // Eu estava aqui seguindo o gemini. depois de terminar falta testar e verificar todos os bugs, mas so vai dar 
+    // para testar 100% quando terminar o Pipeline.
+  },
 }
 
 const EventManager = {
@@ -343,9 +414,11 @@ const EventManager = {
     this.permissaoParaRodar = false;
 
     try {
-      chrome.runtime.sendMessage({ 
-          action: 'ATUALIZAR_STORAGE_ABA',
-          novosDados: { estaCorrendo: false }
+     chrome.runtime.sendMessage({
+        action: "GERENCIAR_STORAGE_ABA",
+        escopo: "aba",
+        metodo: "salvar",
+        dados: { estaCorrendo: false }
       });
     } catch(e) {
       console.warn("Background inacessível no momento do desligamento.");
@@ -354,8 +427,15 @@ const EventManager = {
 
   async _perguntarAoBackground() {
     try {
-      const estaCorrendo = await chrome.runtime.sendMessage({ action: "VERIFICA_ESTADO_ABA" });
-      return estaCorrendo === true;
+      const resposta = await chrome.runtime.sendMessage({
+        action: "GERENCIAR_STORAGE_ABA",
+        escopo: "aba",
+        metodo: "buscar",
+        dados: "estaCorrendo"
+      });
+
+      if (resposta && resposta.sucesso) return resposta.dados;
+      return false;
     } catch(e) {
       return false;
     }
@@ -374,7 +454,7 @@ const EventManager = {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === 'INICIAR_TRADUCAO') {
         this.permissaoParaRodar = true;
-        PipelineManga.executarTrabalho();
+        PipelineManga.init();
         sendResponse(); // 1.6
       }
 
@@ -398,7 +478,7 @@ const EventManager = {
 
     if (querRetomar) {
       this.permissaoParaRodar = true
-      PipelineManga.executarTrabalho();
+      PipelineManga.init();
     } else {
       this.pararOperacaoGlobal();
     }
@@ -574,7 +654,7 @@ const ScrollManager = {
       await Utils.esperar(2000);
       this._AVISOS.mostrarStatus('fechar');
 
-      //PipelineManga.executarTrabalho(); DESATIVADO PARA TESTES.
+      //PipelineManga.init(); DESATIVADO PARA TESTES.
     } else { 
       this._AVISOS.mostrarStatus('erro', 'Falha ao percorrer o mangá.'); 
     }
@@ -583,24 +663,9 @@ const ScrollManager = {
   },
 }
 
-async function salvarDados() {
-  try {
-        // Tentando salvar um Array onde deveria ser um Objeto
-    chrome.runtime.sendMessage({
-      action: "GERENCIAR_STORAGE_ABA", escopo: "aba", metodo: "salvar",
-      dados: ["Não sou um objeto", 123] 
-    }, (res) => console.log("🛡️ VALIDADOR (Barrando lixo):", res));
-  } catch (error) {
-    console.error("Erro na comunicação:", error);
-  }
-}
 
+EventManager.init() // Vai ficar por aqui enquanto eu n mexo no pipeline
 
-
-
-setTimeout(() => salvarDados(), 2000)
- //Pausada para melhorias na seguranca do StorageManager
-//PipelineManga.executarTrabalho();
 
 /*
   APOS A FUNCAO DE SALVAR E BUSCAR DADOS ESTIVER PRONTA EU VOU REFATORAR O MONUTOR DE ULR PARA UM QUE USA
@@ -646,4 +711,6 @@ setTimeout(() => salvarDados(), 2000)
   3.1 - o -1 e aquela coisa de 0 contar entao seria 0, 1, 2, 3, e n 1, 2, 3, 4. O 
         O calculo e simples eu pego o indexInicial e somo com o tamanho do lote atual e vejo se atinje o teto se sim
         Entao e o ultimo senao nao e o ultimo. 
+  3.2 - Pega só o que vem depois da última '/'
+  3.3 - verifica se ambas existem antes de comparar
 */
