@@ -93,8 +93,19 @@ const PipelineManga = {
 
 
   async init() {
-    if (!EventManager.permissaoParaRodar) return;
     if (this.estado.capituloFinalizado) return;
+   /* PROTOCOLO DE FAXINA (DEAD MAN'S SWITCH):
+      A aba fechou? O Background abre a cova e marca no relógio. 
+      Damos 2 minutos de carência pro "morto" ressuscitar (caso seja um refresh 
+      ou erro). Se o sinal de vida não voltar nesse tempo, o Background executa 
+      o extermínio dos dados da sessão. 
+      
+      Filosofia: Dado parado é lixo acumulado. Se a aba não existe mais, o rastro 
+      dela também não tem direito de existir. Storage limpo é storage eficiente.
+
+      da para aprimorar aquele destruir aba e por o time aqui interligar os dois assim n precisa recriar
+      as variaveis.
+  */
 
     if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
     
@@ -294,6 +305,7 @@ const UrlMonitor = {
   _cacheAssinatura: null,
   _AVISOS: null,
   _carregouDOM: null,
+  _verificando: false,
 
   _limparUrl(urlBruta) {
     try {
@@ -332,7 +344,7 @@ const UrlMonitor = {
     this._cacheUrlLimpa = this._limparUrl(location.href);
     this._cacheAssinatura = await this._gerarAssinaturaDOM();
     
-    Utils.gerenciarStorage("salvar", { 
+    await Utils.gerenciarStorage("salvar", { 
       cacheUrl: this._cacheUrlLimpa, 
       cacheAssinatura: this._cacheAssinatura 
     }, "aba");
@@ -342,6 +354,9 @@ const UrlMonitor = {
 
   _iniciarVigia() {
     this._intervaloId = setInterval(async () => {
+      if (this._verificando) return;
+      this._verificando = true;
+
       const urlAtual = this._limparUrl(location.href);
       const mudouUrl = urlAtual !== this._cacheUrlLimpa;
 
@@ -360,47 +375,69 @@ const UrlMonitor = {
 
         this._lidarComMudanca(urlAtual, assinaturaAtual);
       }
+
+      this._verificando = false;
     }, 1000);
   },
 
   async _lidarComMudanca(novaUrl, novaAssinatura) {
+    if (!EventManager.permissaoParaRodar) return;
     clearInterval(this._intervaloId);
+    this._verificando = false;
 
     this._cacheUrlLimpa = novaUrl;
     this._cacheAssinatura = novaAssinatura;
 
-    Utils.gerenciarStorage("salvar", { 
+    await Utils.gerenciarStorage("salvar", { 
         cacheUrl: this._cacheUrlLimpa, 
         cacheAssinatura: this._cacheAssinatura 
     }, "aba");
 
-    const resposta = await Utils.gerenciarStorage("buscar", ['idiomaConfig', 'idiomaOrigem'], "aba");
-
-    console.log(resposta)
-
+    const resposta = await Utils.gerenciarStorage("buscar", ['idiomaConfig', 'idiomaOrigem', 'jaConfirmou', 'estaCorrendo'], "aba");
     const config = (resposta && resposta.sucesso) ? resposta.dados : {};
 
-    if (!resposta.sucesso || !config.idiomaConfig) {
-      await chrome.runtime.sendMessage({
-        action: "GERENCIAR_STORAGE_ABA",
-        escopo: "aba",
-        metodo: "salvar",
-        dados: { jaConfirmou:false, estaCorrendo: false }
+    if (!resposta.sucesso || !config.idiomaConfig || !config.jaConfirmou) {
+      Utils.gerenciarStorage("salvar", { jaConfirmou:false, estaCorrendo: false }, "aba",);
+  
+      const respostaUsuario = await this._AVISOS.verificarSecontinua({
+        titulo: 'Novo Capítulo Detectado',
+        mensagem: 'Qual o idioma original deste mangá para iniciarmos a tradução?',
+        btnSim: 'Iniciar Tradução',
+        btnNao: 'Cancelar',
+        opcoesSelect: [
+          { valor: 'ja', texto: 'Japonês (Mangá)' },
+          { valor: 'ko', texto: 'Coreano (Manhwa)' },
+          { valor: 'zh', texto: 'Chinês (Manhua)' },
+          { valor: 'en', texto: 'Inglês' },
+          { valor: 'es', texto: 'Espanhol' },
+          { valor: 'pt', texto: 'Português' }
+        ]
       });
 
-      this._AVISOS.mostrarStatus(
-        'aviso', 
-        'Configure e confirme os idiomas na extensão para continuar!'
-      );
+      if (respostaUsuario === false || respostaUsuario === 'ignorar') {
+        PipelineManga.resetarPipeline();
+        this._iniciarVigia();
+        return;
+      }
 
-       await Utils.esperar(2500);
-      this._AVISOS.mostrarStatus('ocultar')
+      await Utils.gerenciarStorage("salvar", {
+        idiomaOrigem: respostaUsuario, 
+          idiomaConfig: config.idiomaConfig || 'pt', 
+          jaConfirmou: true, 
+          estaCorrendo: true
+      }, 'aba');
 
-      PipelineManga.resetarPipeline();
+      PipelineManga.executarTrabalho();
       this._iniciarVigia();
       return;
     }
+    
+    if (config.jaConfirmou && config.estaCorrendo) {
+      this._AVISOS.mostrarStatus('carregando', 'Traduzindo novo capítulo...');
+      // PipelineManga.executarTrabalho(); DESATIVADO ATE TERMINAR O PIPELINE
+    }
 
+    this._iniciarVigia();
     // Antes de prosseguir terminar de migrar pro Utils.gerenciarStorage().
     // Eu estava aqui seguindo o gemini. depois de terminar falta testar e verificar todos os bugs, mas so vai dar 
     // para testar 100% quando terminar o Pipeline.
@@ -414,7 +451,7 @@ const EventManager = {
     this.permissaoParaRodar = false;
 
     try {
-     chrome.runtime.sendMessage({
+     chrome.runtime.sendMessage({ // 3.4
         action: "GERENCIAR_STORAGE_ABA",
         escopo: "aba",
         metodo: "salvar",
@@ -427,7 +464,7 @@ const EventManager = {
 
   async _perguntarAoBackground() {
     try {
-      const resposta = await chrome.runtime.sendMessage({
+      const resposta = await chrome.runtime.sendMessage({ // 3.4
         action: "GERENCIAR_STORAGE_ABA",
         escopo: "aba",
         metodo: "buscar",
@@ -454,7 +491,8 @@ const EventManager = {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === 'INICIAR_TRADUCAO') {
         this.permissaoParaRodar = true;
-        PipelineManga.init();
+        // PipelineManga.init(); testes 
+        UrlMonitor.init()
         sendResponse(); // 1.6
       }
 
@@ -667,6 +705,7 @@ const ScrollManager = {
 EventManager.init() // Vai ficar por aqui enquanto eu n mexo no pipeline
 
 
+
 /*
   APOS A FUNCAO DE SALVAR E BUSCAR DADOS ESTIVER PRONTA EU VOU REFATORAR O MONUTOR DE ULR PARA UM QUE USA
   A URL E A IMPRESSAO PRA SABER SE MUDOU, PARA MAIS DETALHES ESTAO NO GEMINI E NA ISSUES DO GIT.
@@ -713,4 +752,5 @@ EventManager.init() // Vai ficar por aqui enquanto eu n mexo no pipeline
         Entao e o ultimo senao nao e o ultimo. 
   3.2 - Pega só o que vem depois da última '/'
   3.3 - verifica se ambas existem antes de comparar
+  3.4 - melhor deixar assim para nao ter que por await nas outras chamadas
 */

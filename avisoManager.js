@@ -103,6 +103,18 @@ const ESTILOS_UI = `
   
   /* APLICANDO O GIRO: */
   .am-anim-spin svg { animation: spinLoading 1s linear infinite; }
+
+  #am-select-dinamico {
+    margin: 15px 0; padding: 8px; width: 100%; background: #1e1b2e; 
+    color: #fff; border: 1px solid #4c1d95; border-radius: 4px; 
+    outline: none; font-size: 14px;
+  }
+
+  .am-btn-desabilitado {
+        opacity: 0.5 !important;
+        cursor: not-allowed !important;
+        filter: grayscale(1);
+  }
 `;
 
 export const AvisoManager = {
@@ -124,10 +136,12 @@ export const AvisoManager = {
       titulo: 'Iniciar Varredura?',
       mensagem: 'Deseja rolar a página e capturar os painéis deste capítulo agora?',
       btnSim: 'Iniciar',
-      btnNao: 'Cancelar'
+      btnNao: 'Cancelar',
+      btnIgnorar: null,
+      opcoesSelect: null
     };
 
-    const { titulo, mensagem, btnSim, btnNao, btnIgnorar } = { ...defaults, ...opcoes };
+    const { titulo, mensagem, btnSim, btnNao, btnIgnorar, opcoesSelect } = { ...defaults, ...opcoes };
 
     return new Promise((resolv) => {
       this._injetarCSS();
@@ -138,10 +152,21 @@ export const AvisoManager = {
             ? `<button class="am-btn am-btn-ignorar" id="am-ignorar">${btnIgnorar}</button>` 
             : '';
 
+      let htmlSelect = '';
+      if (opcoesSelect && Array.isArray(opcoesSelect)) {
+        htmlSelect = `
+          <select id="am-select-dinamico">
+            <option value="" disabled selected>Selecione o idioma de origem...</option>
+            ${opcoesSelect.map(op => `<option value="${op.valor}">${op.texto}</option>`).join('')}
+          </select>
+        `;
+      }
+
       overlay.innerHTML = `
         <div class="am-caixa">
           <h3>${titulo}</h3>
           <p>${mensagem}</p>
+          ${htmlSelect}
           <div class="am-botoes">
             <button class="am-btn am-btn-sim" id="am-sim">${btnSim}</button>
             <button class="am-btn am-btn-nao" id="am-nao">${btnNao}</button>
@@ -162,8 +187,30 @@ export const AvisoManager = {
         setTimeout(() => { overlay.remove(); resolv(resposta); }, 300);
       };
 
-      document.getElementById('am-sim').onclick = () => fechar(true); // 1.2
-      document.getElementById('am-nao').onclick = () => fechar(false);
+      const btnSimEl = document.getElementById('am-sim');
+      const selectEl = document.getElementById('am-select-dinamico');
+
+      if (selectEl) {
+        btnSimEl.disabled = true;
+        btnSimEl.classList.add('am-btn-desabilitado');
+
+        selectEl.onchange = () => {
+          if (selectEl.value) {
+            btnSimEl.disabled = false;
+            btnSimEl.classList.remove('am-btn-desabilitado');
+          } else {
+            btnSimEl.disabled = true;
+            btnSimEl.classList.add('am-btn-desabilitado');
+          }
+        };
+      }
+
+      btnSimEl.onclick = () => {
+        const resultado = selectEl ? selectEl.value : true;
+        fechar(resultado);
+      }
+
+      document.getElementById('am-nao').onclick = () => fechar(false); // 1.2
 
       if (btnIgnorar) {
         document.getElementById('am-ignorar').onclick = () => fechar('ignorar');
