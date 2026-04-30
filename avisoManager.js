@@ -1,3 +1,5 @@
+// Arquivo: avisoManager.js | Versão: 1.8
+
 const ICONES = {
   descendo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`,
   subindo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`,
@@ -6,118 +8,134 @@ const ICONES = {
   spinner: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>`,
   info: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
   aviso: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
+  fecharX: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`
 };
 
 const ESTILOS_UI = `
   :root {
     --am-bg-card: #1e1b2e;
     --am-roxo-primario: #8b5cf6;
-    --am-roxo-hover: #7c3aed;
     --am-borda: #4c1d95;
     --am-texto: #e2e8f0;
-    --am-sucesso: #10b981;
+    --am-fundo-extremo: #0f111a;
+    
+    --am-sucesso: #34d399;
     --am-erro: #ef4444;
-    --am-info: #3b82f6;
-    --am-aviso: #f59e0b;
+    --am-info: #60a5fa;
+    --am-aviso: #fbbf24;
   }
 
-  /* --- MODAL DE CONFIRMAÇÃO (Centro) --- */
+  /* --- MODAL DE CONFIRMAÇÃO --- */
   #am-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(15, 17, 26, 0.85); backdrop-filter: blur(5px);
     z-index: 9999999; display: flex; justify-content: center; align-items: center;
-    opacity: 0; transition: opacity 0.3s ease;
+    opacity: 0; transition: opacity 0.3s ease; padding: 20px; box-sizing: border-box;
   }
+  
   .am-caixa {
-    background: var(--am-bg-card); padding: 24px; border-radius: 12px;
+    background: var(--am-bg-card); padding: 24px; border-radius: 8px;
     border: 1px solid var(--am-borda); box-shadow: 0 15px 35px rgba(0,0,0,0.8);
-    text-align: center; color: var(--am-texto); font-family: 'Segoe UI', sans-serif;
-    max-width: 340px; /* Aumentei ligeiramente de 320 para 340 para dar mais respiro */
+    text-align: center; color: var(--am-texto); font-family: 'Segoe UI', system-ui, sans-serif;
+    width: 100%; max-width: 340px; 
     transform: translateY(20px); transition: transform 0.3s ease;
   }
-  .am-caixa h3 { color: #a78bfa; margin: 0 0 10px 0; font-size: 18px; }
-  .am-caixa p { margin: 0 0 20px 0; font-size: 14px; color: #94a3b8; line-height: 1.4; }
+  
+  .am-caixa h3 { color: var(--am-roxo-primario); margin: 0 0 10px 0; font-size: 16px; font-weight: 700; }
+  .am-caixa p { margin: 0 0 20px 0; font-size: 13px; color: #94a3b8; line-height: 1.4; }
 
-  .am-botoes { 
-    display: flex; 
-    gap: 10px; 
-    justify-content: center; 
-    flex-wrap: wrap; /* Permite que um botão caia para a linha de baixo se não couber */
-    align-items: center; 
-  }
-
+  .am-botoes { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; align-items: center; }
   .am-btn { 
-    padding: 10px 16px; /* Padding um pouco menor nas laterais */
-    border-radius: 6px; 
-    cursor: pointer; 
-    font-weight: bold; 
-    border: none; 
-    transition: 0.2s; 
-    white-space: nowrap; /* Impede que o texto quebre e deixe o botão alto */
-    flex: 1 1 auto; /* Faz os botões dividirem o espaço ou preencherem a linha se caírem */
+    padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; 
+    border: none; transition: 0.2s; flex: 1 1 auto; white-space: nowrap; font-size: 12px;
   }
-
-  .am-btn-sim { background: var(--am-roxo-primario); color: white; }
-  .am-btn-sim:hover { background: var(--am-roxo-hover); transform: translateY(-1px); }
+  .am-btn-sim { background: linear-gradient(135deg, #7c3aed, #5b21b6); color: white; }
+  .am-btn-sim:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
   .am-btn-nao { background: transparent; border: 1px solid #475569; color: #94a3b8; }
   .am-btn-nao:hover { background: rgba(255,255,255,0.05); color: white; }
-  .am-btn-ignorar { background: transparent; border: 1px solid var(--am-aviso); color: #fbbf24; }
-  .am-btn-ignorar:hover { background: rgba(245, 158, 11, 0.1); color: white; transform: translateY(-1px); }
-
-  /* --- TOAST DE STATUS (Canto inferior) --- */
-  #am-toast {
-    position: fixed; bottom: 30px; right: 30px; z-index: 999999;
-    background: var(--am-bg-card); color: var(--am-texto); padding: 14px 20px;
-    border-radius: 10px; border: 1px solid var(--am-borda);
-    font-family: 'Segoe UI', sans-serif; font-size: 14px; font-weight: 500;
-    display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    opacity: 0; transform: translateY(30px); pointer-events: none;
-  }
-  #am-toast.ativo { opacity: 1; transform: translateY(0); pointer-events: all; }
-  
-  /* Cores de Estado do Toast */
-  #am-toast.estado-sucesso { border-color: var(--am-sucesso); background: #064e3b; }
-  #am-toast.estado-sucesso svg { color: #34d399; }
-  #am-toast.estado-erro { border-color: var(--am-erro); background: #450a0a; }
-  #am-toast.estado-erro svg { color: #f87171; }
-  #am-toast.estado-info { border-color: var(--am-info); background: #1e3a8a; }
-  #am-toast.estado-info svg { color: #60a5fa; }
-  
-  #am-toast.estado-aviso { border-color: var(--am-aviso); background: #78350f; }
-  #am-toast.estado-aviso svg { color: #fbbf24; }
-  
-  /* Animações dos Ícones */
-  .am-icone svg { width: 24px; height: 24px; color: #a78bfa; }
-  @keyframes floatDown { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
-  @keyframes floatUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-  .am-anim-descendo svg { animation: floatDown 1.5s infinite; }
-  .am-anim-subindo svg { animation: floatUp 1.5s infinite; }
-
-  /* NOVA ANIMAÇÃO DE GIRO: */
-  @keyframes spinLoading { 100% { transform: rotate(360deg); } }
-
-  .am-anim-descendo svg { animation: floatDown 1.5s infinite; }
-  .am-anim-subindo svg { animation: floatUp 1.5s infinite; }
-  
-  /* APLICANDO O GIRO: */
-  .am-anim-spin svg { animation: spinLoading 1s linear infinite; }
+  .am-btn-ignorar { background: transparent; border: 1px solid var(--am-aviso); color: var(--am-aviso); }
+  .am-btn-ignorar:hover { background: rgba(245, 158, 11, 0.1); color: white; }
+  .am-btn-desabilitado { opacity: 0.5 !important; cursor: not-allowed !important; filter: grayscale(1); }
 
   #am-select-dinamico {
-    margin: 15px 0; padding: 8px; width: 100%; background: #1e1b2e; 
-    color: #fff; border: 1px solid #4c1d95; border-radius: 4px; 
-    outline: none; font-size: 14px;
+    margin: 15px 0; padding: 10px; width: 100%; background: var(--am-fundo-extremo); 
+    color: #fff; border: 1px solid var(--am-borda); border-radius: 6px; 
+    outline: none; font-size: 13px; font-family: inherit;
   }
 
-  .am-btn-desabilitado {
-        opacity: 0.5 !important;
-        cursor: not-allowed !important;
-        filter: grayscale(1);
+  /* --- TOAST BASE --- */
+  #am-toast {
+    position: fixed; z-index: 999999;
+    background: var(--am-bg-card); color: var(--am-texto);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    opacity: 0; pointer-events: none;
   }
+
+  /* --- ESTILO 1: CANTO (PERSISTENTES / Mapear, etc) --- */
+  #am-toast.pos-canto { 
+    bottom: 30px; right: 30px; transform: translateY(30px);
+    border: 1px solid var(--am-borda); border-left: 4px solid var(--am-roxo-primario);
+    border-radius: 8px; padding: 14px 20px; gap: 12px;
+    align-items: center; flex-direction: row;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+  }
+  #am-toast.pos-canto.ativo { opacity: 1; transform: translateY(0); pointer-events: all; }
+  #am-toast.pos-canto .am-icone svg { width: 24px; height: 24px; color: var(--am-roxo-primario); flex-shrink: 0; }
+  #am-toast.pos-canto .am-texto { font-weight: 500; font-size: 14px; text-align: left; }
+
+  /* --- ESTILO 2: CENTRO (TEMPORÁRIOS / Erro, Aviso, etc) --- */
+  #am-toast.pos-centro { 
+    top: 50%; left: 50%; transform: translate(-50%, -40%) scale(0.95);
+    border: 1px solid var(--am-borda); border-radius: 8px;
+    width: 100%; max-width: 340px; padding: 30px 24px 24px 24px;
+    flex-direction: column; align-items: center; text-align: center;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.9);
+  }
+  #am-toast.pos-centro.ativo { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: all; }
+
+  .am-icone-grande svg { width: 48px; height: 48px; margin-bottom: 12px; }
+  .am-titulo { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .am-mensagem { font-size: 13px; color: #94a3b8; line-height: 1.4; width: 100%; }
+
+  .am-btn-fechar-abs {
+    position: absolute; top: 10px; right: 10px;
+    background: transparent; border: none; color: #94a3b8; cursor: pointer;
+    padding: 6px; display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; transition: 0.2s;
+  }
+  .am-btn-fechar-abs:hover { background: rgba(255,255,255,0.1); color: white; }
+  .am-btn-fechar-abs svg { width: 18px; height: 18px; }
+
+  /* --- CORES DE ESTADO --- */
+  #am-toast.estado-sucesso.pos-centro { border-color: var(--am-sucesso); }
+  #am-toast.estado-sucesso.pos-centro .am-icone-grande svg { color: var(--am-sucesso); }
+  #am-toast.estado-sucesso.pos-centro .am-titulo { color: var(--am-sucesso); }
+
+  #am-toast.estado-erro.pos-centro { border-color: var(--am-erro); }
+  #am-toast.estado-erro.pos-centro .am-icone-grande svg { color: var(--am-erro); }
+  #am-toast.estado-erro.pos-centro .am-titulo { color: var(--am-erro); }
+
+  #am-toast.estado-info.pos-centro { border-color: var(--am-info); }
+  #am-toast.estado-info.pos-centro .am-icone-grande svg { color: var(--am-info); }
+  #am-toast.estado-info.pos-centro .am-titulo { color: var(--am-info); }
+
+  #am-toast.estado-aviso.pos-centro { border-color: var(--am-aviso); }
+  #am-toast.estado-aviso.pos-centro .am-icone-grande svg { color: var(--am-aviso); }
+  #am-toast.estado-aviso.pos-centro .am-titulo { color: var(--am-aviso); }
+
+  @keyframes floatDown { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+  @keyframes floatUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes spinLoading { 100% { transform: rotate(360deg); } }
+  .am-anim-descendo svg { animation: floatDown 1.5s infinite; }
+  .am-anim-subindo svg { animation: floatUp 1.5s infinite; }
+  .am-anim-spin svg { animation: spinLoading 1s linear infinite; }
 `;
 
 export const AvisoManager = {
+  _timerOcultar: null,
+  _resolverModalAtivo: null, 
+
   _injetarCSS() {
     if (!document.getElementById('am-estilos-injetados')) {
       const style = document.createElement('style');
@@ -127,64 +145,91 @@ export const AvisoManager = {
     }
   },
 
-  verificarSecontinua(opcoes = {}) { 
-    if (typeof opcoes !== 'object' || opcoes === null || Array.isArray(opcoes)) {
-      opcoes = {};
+  _prepararElementoToast() {
+    let aviso = document.getElementById('am-toast');
+    if (!aviso) {
+      aviso = document.createElement('div');
+      aviso.id = 'am-toast';
+      document.body.appendChild(aviso);
     }
+    aviso.className = ''; 
+    return aviso;
+  },
 
-    const defaults = {
-      titulo: 'Iniciar Varredura?',
-      mensagem: 'Deseja rolar a página e capturar os painéis deste capítulo agora?',
-      btnSim: 'Iniciar',
-      btnNao: 'Cancelar',
-      btnIgnorar: null,
-      opcoesSelect: null
-    };
+  _ocultarStatus(imediato = false) {
+    if (this._timerOcultar) { clearTimeout(this._timerOcultar); this._timerOcultar = null; }
+    const avisoExistente = document.getElementById('am-toast');
+    if (!avisoExistente) return;
 
-    const { titulo, mensagem, btnSim, btnNao, btnIgnorar, opcoesSelect } = { ...defaults, ...opcoes };
+    avisoExistente.classList.remove('ativo');
+    if (imediato) {
+      avisoExistente.remove();
+    } else {
+      setTimeout(() => { if (avisoExistente.parentNode) avisoExistente.remove(); }, 400);
+    }
+  },
 
+  _lidarComErroDoBackground() {
+    try { 
+      chrome.runtime.sendMessage({
+        action: "GERENCIAR_STORAGE_ABA",
+        escopo: "aba",
+        metodo: "salvar",
+        dados: { estaCorrendo: false }
+      });
+    } catch(e) { }
+  },
+
+  verificarSecontinua(opcoes = {}) { 
     return new Promise((resolv) => {
       this._injetarCSS();
+      
+      const overlayAntigo = document.getElementById('am-overlay');
+      if (overlayAntigo) {
+        if (this._resolverModalAtivo) {
+          this._resolverModalAtivo(false); 
+        }
+        overlayAntigo.remove(); 
+      }
+      this._resolverModalAtivo = resolv;
+
+      const defaults = { titulo: 'Iniciar Varredura?', mensagem: '...', btnSim: 'Iniciar', btnNao: 'Cancelar' };
+      const config = { ...defaults, ...opcoes };
+
       const overlay = document.createElement('div');
       overlay.id = 'am-overlay';
       
-      const htmlBtnIgnorar = btnIgnorar 
-            ? `<button class="am-btn am-btn-ignorar" id="am-ignorar">${btnIgnorar}</button>` 
-            : '';
-
-      let htmlSelect = '';
-      if (opcoesSelect && Array.isArray(opcoesSelect)) {
-        htmlSelect = `
+      let htmlSelect = config.opcoesSelect ? `
           <select id="am-select-dinamico">
-            <option value="" disabled selected>Selecione o idioma de origem...</option>
-            ${opcoesSelect.map(op => `<option value="${op.valor}">${op.texto}</option>`).join('')}
-          </select>
-        `;
-      }
+            <option value="" disabled selected>Selecione o idioma...</option>
+            ${config.opcoesSelect.map(op => `<option value="${op.valor}">${op.texto}</option>`).join('')}
+          </select>` : '';
 
       overlay.innerHTML = `
         <div class="am-caixa">
-          <h3>${titulo}</h3>
-          <p>${mensagem}</p>
-          ${htmlSelect}
+          <h3>${config.titulo}</h3><p>${config.mensagem}</p>${htmlSelect}
           <div class="am-botoes">
-            <button class="am-btn am-btn-sim" id="am-sim">${btnSim}</button>
-            <button class="am-btn am-btn-nao" id="am-nao">${btnNao}</button>
-            ${htmlBtnIgnorar}
+            <button class="am-btn am-btn-sim" id="am-sim">${config.btnSim}</button>
+            <button class="am-btn am-btn-nao" id="am-nao">${config.btnNao}</button>
           </div>
-        </div>
-      `;
+        </div>`;
       document.body.appendChild(overlay);
 
-      requestAnimationFrame(() => { // 1.1
+      requestAnimationFrame(() => {
         overlay.style.opacity = '1';
         overlay.querySelector('.am-caixa').style.transform = 'translateY(0)';
       });
 
-      const fechar = (resposta) => {
+      const fechar = (res) => {
         overlay.style.opacity = '0';
-        overlay.querySelector('.am-caixa').style.transform = 'translateY(20px)';
-        setTimeout(() => { overlay.remove(); resolv(resposta); }, 300);
+        setTimeout(() => { 
+          if (overlay.parentNode) overlay.remove(); 
+          
+          if (this._resolverModalAtivo === resolv) {
+            this._resolverModalAtivo = null;
+          }
+          resolv(res); 
+        }, 300);
       };
 
       const btnSimEl = document.getElementById('am-sim');
@@ -193,105 +238,63 @@ export const AvisoManager = {
       if (selectEl) {
         btnSimEl.disabled = true;
         btnSimEl.classList.add('am-btn-desabilitado');
-
         selectEl.onchange = () => {
-          if (selectEl.value) {
-            btnSimEl.disabled = false;
-            btnSimEl.classList.remove('am-btn-desabilitado');
-          } else {
-            btnSimEl.disabled = true;
-            btnSimEl.classList.add('am-btn-desabilitado');
-          }
+          btnSimEl.disabled = !selectEl.value;
+          btnSimEl.classList.toggle('am-btn-desabilitado', !selectEl.value);
         };
       }
 
-      btnSimEl.onclick = () => {
-        const resultado = selectEl ? selectEl.value : true;
-        fechar(resultado);
-      }
-
-      document.getElementById('am-nao').onclick = () => fechar(false); // 1.2
-
-      if (btnIgnorar) {
-        document.getElementById('am-ignorar').onclick = () => fechar('ignorar');
-      }
+      btnSimEl.onclick = () => fechar(selectEl ? selectEl.value : true);
+      document.getElementById('am-nao').onclick = () => fechar(false);
     });
   },
 
   mostrarStatus(estado, textoCustomizado = null) {
-    if (estado === 'ocultar') {
-      const avisoExistente = document.getElementById('am-toast');
+    if (estado === 'ocultar') return this._ocultarStatus();
+
+    const configuracoesToast = {
+      'descendo':   { icone: ICONES.descendo, texto: textoCustomizado || 'Mapeando páginas...', anim: 'am-anim-descendo', persistente: true },
+      'subindo':    { icone: ICONES.subindo,  texto: textoCustomizado || 'Retornando ao topo...', anim: 'am-anim-subindo', persistente: true },
+      'carregando': { icone: ICONES.spinner,  texto: textoCustomizado || 'Processando...', anim: 'am-anim-spin', persistente: true },
       
-      if (avisoExistente) {
-        avisoExistente.classList.remove('ativo'); 
-        setTimeout(() => avisoExistente.remove(), 400); 
-      }
-      return; 
-    }
-
-    this._injetarCSS();
-    let aviso = document.getElementById('am-toast');
-
-    if (!aviso) {
-      aviso = document.createElement('div');
-      aviso.id = 'am-toast';
-      aviso.innerHTML = `<div class="am-icone"></div><div class="am-texto"></div>`;
-      document.body.appendChild(aviso);
-    }
-
-    const iconeContainer = aviso.querySelector('.am-icone');
-    const textoContainer = aviso.querySelector('.am-texto');
-
-    aviso.className = 'ativo';  // 1.3
-    iconeContainer.className = 'am-icone';
-
-    const configs = {
-      'descendo': { icone: ICONES.descendo, texto: 'Mapeando páginas...', anim: 'am-anim-descendo' },
-      'subindo': { icone: ICONES.subindo,  texto: 'Retornando ao topo...', anim: 'am-anim-subindo' },
-      'fechar': { icone: ICONES.sucesso,  texto: textoCustomizado || 'Leitura concluída!', classeExtra: 'estado-sucesso' },
-      'erro': { icone: ICONES.erro,     texto: textoCustomizado || 'Processo interrompido!', classeExtra: 'estado-erro' },
-      'carregando': { icone: ICONES.spinner, texto: textoCustomizado || 'Processando...', anim: 'am-anim-spin' },
-      'info': { icone: ICONES.info, texto: textoCustomizado || 'Informação', classeExtra: 'estado-info' },
-      'aviso': { icone: ICONES.aviso, texto: textoCustomizado || 'Atenção', classeExtra: 'estado-aviso' },
+      'fechar':     { icone: ICONES.sucesso,  titulo: 'Concluído!', classe: 'estado-sucesso', persistente: false, tempo: 2000 },
+      'erro':       { icone: ICONES.erro,     titulo: 'Erro Crítico!', classe: 'estado-erro', persistente: false, tempo: 4000 },
+      'info':       { icone: ICONES.info,     titulo: 'Informação', classe: 'estado-info', persistente: false, tempo: 3000 },
+      'aviso':      { icone: ICONES.aviso,    titulo: 'Atenção', classe: 'estado-aviso', persistente: false, tempo: 3000 },
     };
 
-    const configAtual = configs[estado];
-    if (!configAtual) return;
+    const config = configuracoesToast[estado];
+    if (!config) return;
 
-    iconeContainer.innerHTML = configAtual.icone;
-    if (configAtual.anim) iconeContainer.classList.add(configAtual.anim);
-    textoContainer.innerText = configAtual.texto;
-    if (configAtual.classeExtra) aviso.classList.add(configAtual.classeExtra);
+    this._injetarCSS();
+    this._ocultarStatus(true); 
 
-    if (estado === 'fechar' || estado === 'erro') {
-      const tempo = estado === 'erro' ? 3000 : 2000;
+    const aviso = this._prepararElementoToast();
+    let htmlContent = '';
 
-      setTimeout(() => {
-        aviso.classList.remove('ativo');
-        setTimeout(() => aviso.remove(), 400);
+    if (config.persistente) {
+      htmlContent += `<div class="am-icone ${config.anim || ''}">${config.icone}</div>`;
+      htmlContent += `<div class="am-texto">${config.texto}</div>`;
+      aviso.classList.add('pos-canto');
+    } else {
+      htmlContent += `<button class="am-btn-fechar-abs" id="am-fechar-btn">${ICONES.fecharX}</button>`;
+      htmlContent += `<div class="am-icone-grande">${config.icone}</div>`;
+      htmlContent += `<div class="am-titulo">${config.titulo}</div>`;
+      htmlContent += `<div class="am-mensagem">${textoCustomizado || 'Operação finalizada.'}</div>`;
+      aviso.classList.add('pos-centro');
+      if (config.classe) aviso.classList.add(config.classe);
+    }
 
-        if (estado === 'erro') {
-          try { 
-            chrome.runtime.sendMessage({
-              action: "GERENCIAR_STORAGE_ABA",
-              escopo: "aba",
-              metodo: "salvar",
-              dados: { estaCorrendo: false }
-            })
-          } catch(e) {
+    aviso.innerHTML = htmlContent;
 
-          }
-        }
-      }, tempo);
+    requestAnimationFrame(() => aviso.classList.add('ativo'));
+
+    if (!config.persistente) {
+      document.getElementById('am-fechar-btn').onclick = () => this._ocultarStatus();
+      this._timerOcultar = setTimeout(() => {
+        this._ocultarStatus();
+        if (estado === 'erro') this._lidarComErroDoBackground();
+      }, config.tempo);
     }
   },
 }
-
-/*
-  1.1 - isso e para animacao n bugar, o navegador gosta de otimizar as coisas entao ele nem le o opacity 0 e ja pula pro 1.
-  1.2 - da pra usar assim, mas so aceita uma funcao por vez n pode ter mais de uma. E e le so serve para elmentos que criamos e que tenham 
-        vida curta. se for colocar em um elemento ja existente ele pode substitui-lo.
-          Elemento que VOCÊ criou e vai destruir: onclick é rápido, limpo e direto.
-          Elemento que já existe ou é permanente: Sempre use addEventListener para não atropelar ninguém.
-  1.3 - limpa o icone e aviso anterior.
-*/

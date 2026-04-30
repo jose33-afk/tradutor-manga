@@ -50,7 +50,7 @@ const Utils = {
 const PipelineManga = {
   _AVISOS: null, 
   estado: {
-    scrollConcluido: true, // TRUE - para testes, valor original - false.
+    scrollConcluido: true, // TRUE - para testes, valor original - false. e isso vai ficar no storage e so vai ficar para um acesso mais rapido
     imagensMapeadas: false,
     enviarProBackground: false, 
     capituloFinalizado: false,
@@ -94,22 +94,91 @@ const PipelineManga = {
 
   async init() {
     if (this.estado.capituloFinalizado) return;
-   /* PROTOCOLO DE FAXINA (DEAD MAN'S SWITCH):
-      A aba fechou? O Background abre a cova e marca no relógio. 
-      Damos 2 minutos de carência pro "morto" ressuscitar (caso seja um refresh 
-      ou erro). Se o sinal de vida não voltar nesse tempo, o Background executa 
-      o extermínio dos dados da sessão. 
-      
-      Filosofia: Dado parado é lixo acumulado. Se a aba não existe mais, o rastro 
-      dela também não tem direito de existir. Storage limpo é storage eficiente.
-
-      da para aprimorar aquele destruir aba e por o time aqui interligar os dois assim n precisa recriar
-      as variaveis.
-  */
-
     if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
     
-  
+    
+    
+    // Teste 2.1: Metralhadora de Toasts (Race Condition)
+    console.log("💥 Teste 2.1: Disparando múltiplos Toasts quase ao mesmo tempo...");
+    this._AVISOS.mostrarStatus('carregando', 'Ação 1');
+    setTimeout(() => this._AVISOS.mostrarStatus('descendo', 'Ação 2 (Sobrescreveu!)'), 50);
+    setTimeout(() => this._AVISOS.mostrarStatus('aviso', 'Ação 3 (Centro!)'), 100);
+    
+    // Verificação manual: Apenas o "Ação 3" deve ficar na tela no centro, e depois sumir sem deixar erros no console.
+    await new Promise(r => setTimeout(r, 4000));
+    if(document.getElementById('am-toast')) {
+      console.error("🚨 FALHA: O Toast fantasma ficou preso no DOM!");
+    } else {
+      console.log("✅ Sucesso: Sem Toasts fantasmas.");
+    }
+
+    // Teste 2.2: Cancelamento Abrupto de Animação
+    console.log("💥 Teste 2.2: Chamando ocultar() antes de renderizar e no meio da animação...");
+    this._AVISOS.mostrarStatus('info', 'Piscou!');
+    this._AVISOS.mostrarStatus('ocultar'); // Oculta na mesma fração de segundo
+    
+    setTimeout(() => {
+      this._AVISOS.mostrarStatus('erro', 'Deu erro crítico!');
+      // Oculta no exato instante que a opacidade está indo para 1
+      setTimeout(() => this._AVISOS.mostrarStatus('ocultar'), 150); 
+    }, 1000);
+
+    await new Promise(r => setTimeout(r, 3000));
+    if(document.getElementById('am-toast')) {
+      console.error("🚨 FALHA: Ocultar() não conseguiu limpar o DOM adequadamente.");
+    }
+
+    // Teste 2.3: Interação Manual do Usuário vs Timer
+    console.log("💥 Teste 2.3: Fechar pelo (X) antes do Timer agir.");
+    this._AVISOS.mostrarStatus('info', 'Clique rápido no X do aviso!');
+    // Se o Timer não for limpo, ele tentará deletar um elemento que o usuário já deletou, gerando erro silencioso.
+    
+    // Teste 2.4: Múltiplos Modais (Comportamento Extremo)
+    console.log("💥 Teste 2.4: Invocando dois modais ao mesmo tempo (O sistema deve lidar ou substituir).");
+    this._AVISOS.verificarSecontinua({ titulo: 'Modal 1', mensagem: 'Fiquei preso?' });
+    const respos = await this._AVISOS.verificarSecontinua({ titulo: 'Modal 2', mensagem: 'Sobrescrevi o 1?' });
+    console.log(respos)
+    console.log("✅ FASE 2 CONCLUÍDA! Verifique se há erros vermelhos no Console.");
+
+
+  console.log("🔥 [Fase 2] Subindo modal com opções...");
+  console.log("👉 AÇÃO ESPERADA: Tente clicar no botão Confirmar sem selecionar nada (deve estar bloqueado). Depois selecione 'Espanhol' e confirme.");
+
+  const resultadoSelecionado = await this._AVISOS.verificarSecontinua({
+    titulo: 'Qual o idioma original?',
+    mensagem: 'Selecione um idioma para destravar o botão.',
+    btnSim: 'Confirmar Escolha',
+    btnNao: 'Cancelar',
+    opcoesSelect: [
+      { valor: 'ja', texto: 'Japonês' },
+      { valor: 'ko', texto: 'Coreano' },
+      { valor: 'es', texto: 'Espanhol' }
+    ]
+  });
+
+
+    console.log("%c✅ [SUCESSO] O modal capturou e retornou a string correta: " + resultadoSelecionado, "color: #10b981; font-weight: bold; font-size: 14px;");
+
+ 
+    console.log("⏱️ [Passo 1] Mostrando Persistente no CANTO (Mapeando...)");
+    this._AVISOS.mostrarStatus('descendo', 'Extraindo 100 imagens...');
+    
+    await Utils.esperar(2500); // Fica na tela por 2.5s
+
+    console.log("⏱️ [Passo 2] Trocando o do CANTO (Processando OCR...)");
+    // Como é persistente, não some sozinho. Ao chamar de novo, ele deve apenas trocar o texto e o ícone sem piscar a tela agressivamente.
+    this._AVISOS.mostrarStatus('carregando', 'Binarizando via Canvas...');
+
+    await Utils.esperar(2500); // Fica na tela por 2.5s
+
+    console.log("💥 [Passo 3] Finalizando com Temporário no CENTRO (Sucesso!)");
+    // Este deve apagar o do canto, surgir no meio da tela no formato Card Modal, e sumir sozinho após 2 segundos.
+    this._AVISOS.mostrarStatus('fechar', 'Capítulo 100% processado e limpo!');
+    
+    console.log("👉 AÇÃO ESPERADA: Não faça nada. O Card do centro DEVE sumir sozinho em 2 segundos e a tela deve ficar limpa.");
+
+
+
 
   //   if (!this.estado.scrollConcluido) {
   //     const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
@@ -702,9 +771,7 @@ const ScrollManager = {
 }
 
 
-EventManager.init() // Vai ficar por aqui enquanto eu n mexo no pipeline
-
-
+PipelineManga.init()
 
 /*
   APOS A FUNCAO DE SALVAR E BUSCAR DADOS ESTIVER PRONTA EU VOU REFATORAR O MONUTOR DE ULR PARA UM QUE USA
