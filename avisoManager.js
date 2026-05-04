@@ -1,5 +1,3 @@
-// Arquivo: avisoManager.js | Versão: 1.8
-
 const ICONES = {
   descendo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`,
   subindo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`,
@@ -135,6 +133,7 @@ const ESTILOS_UI = `
 export const AvisoManager = {
   _timerOcultar: null,
   _resolverModalAtivo: null, 
+  _objeto(val) { return typeof val === 'object' && val !== null && !Array.isArray(val) && Object.keys(val).length > 0; },
 
   _injetarCSS() {
     if (!document.getElementById('am-estilos-injetados')) {
@@ -193,7 +192,7 @@ export const AvisoManager = {
       }
       this._resolverModalAtivo = resolv;
 
-      const defaults = { titulo: 'Iniciar Varredura?', mensagem: '...', btnSim: 'Iniciar', btnNao: 'Cancelar' };
+      const defaults = { titulo: 'Iniciar Varredura?', mensagem: '...', btnSim: 'Iniciar', btnNao: 'Cancelar', tempoAutoFechamento: null };
       const config = { ...defaults, ...opcoes };
 
       const overlay = document.createElement('div');
@@ -220,7 +219,14 @@ export const AvisoManager = {
         overlay.querySelector('.am-caixa').style.transform = 'translateY(0)';
       });
 
+      let intervaloContador = null;
+
       const fechar = (res) => {
+        if (intervaloContador) {
+          clearInterval(intervaloContador)
+          intervaloContador = null;
+        };
+
         overlay.style.opacity = '0';
         setTimeout(() => { 
           if (overlay.parentNode) overlay.remove(); 
@@ -232,8 +238,9 @@ export const AvisoManager = {
         }, 300);
       };
 
-      const btnSimEl = document.getElementById('am-sim');
-      const selectEl = document.getElementById('am-select-dinamico');
+      const btnSimEl = overlay.querySelector('#am-sim');
+      const bntNaoEl = overlay.querySelector('#am-nao');
+      const selectEl = overlay.querySelector('#am-select-dinamico');
 
       if (selectEl) {
         btnSimEl.disabled = true;
@@ -244,27 +251,55 @@ export const AvisoManager = {
         };
       }
 
+      if (config.tempoAutoFechamento && !config.opcoesSelect) {
+        let segundos = Math.floor(config.tempoAutoFechamento / 1000);
+        const textoOriginalSim = config.btnSim;
+
+        btnSimEl.innerText = `${textoOriginalSim} (${segundos}s)`;
+
+        intervaloContador = setInterval(() => {
+          segundos--;
+
+          if (segundos > 0) btnSimEl.innerText = `${textoOriginalSim} (${segundos}s)`;
+          else fechar(true);
+          
+        }, 1000);
+      }
+
       btnSimEl.onclick = () => fechar(selectEl ? selectEl.value : true);
-      document.getElementById('am-nao').onclick = () => fechar(false);
+      bntNaoEl.onclick = () => fechar(false);
     });
   },
 
-  mostrarStatus(estado, textoCustomizado = null) {
+  mostrarStatus(estado, textoOuOpcoes = null, opcoesExtras = {}) {
     if (estado === 'ocultar') return this._ocultarStatus();
 
-    const configuracoesToast = {
-      'descendo':   { icone: ICONES.descendo, texto: textoCustomizado || 'Mapeando páginas...', anim: 'am-anim-descendo', persistente: true },
-      'subindo':    { icone: ICONES.subindo,  texto: textoCustomizado || 'Retornando ao topo...', anim: 'am-anim-subindo', persistente: true },
-      'carregando': { icone: ICONES.spinner,  texto: textoCustomizado || 'Processando...', anim: 'am-anim-spin', persistente: true },
+    let textoCustomizado = null;
+    
+    if (textoOuOpcoes !== null && this._objeto(textoOuOpcoes)) {
+      opcoesExtras = textoOuOpcoes;
+    } else {
+      textoCustomizado = textoOuOpcoes;
+    }
+
+    if (opcoesExtras.tempo) opcoesExtras.persistente = false;
+
+    const configuracoesBase = {
+      'descendo':   { layout: 'canto',  icone: ICONES.descendo, texto: textoCustomizado || 'Mapeando páginas...', anim: 'am-anim-descendo', persistente: true, titulo: 'Mapeando' },
+      'subindo':    { layout: 'canto',  icone: ICONES.subindo,  texto: textoCustomizado || 'Retornando ao topo...', anim: 'am-anim-subindo', persistente: true, titulo: 'Subindo' },
+      'carregando': { layout: 'canto',  icone: ICONES.spinner,  texto: textoCustomizado || 'Processando...', anim: 'am-anim-spin', persistente: true, titulo: 'Processando' },
       
-      'fechar':     { icone: ICONES.sucesso,  titulo: 'Concluído!', classe: 'estado-sucesso', persistente: false, tempo: 2000 },
-      'erro':       { icone: ICONES.erro,     titulo: 'Erro Crítico!', classe: 'estado-erro', persistente: false, tempo: 4000 },
-      'info':       { icone: ICONES.info,     titulo: 'Informação', classe: 'estado-info', persistente: false, tempo: 3000 },
-      'aviso':      { icone: ICONES.aviso,    titulo: 'Atenção', classe: 'estado-aviso', persistente: false, tempo: 3000 },
+      'fechar':     { layout: 'centro', icone: ICONES.sucesso,  titulo: 'Concluído!', classe: 'estado-sucesso', persistente: false, tempo: 2000 },
+      'erro':       { layout: 'centro', icone: ICONES.erro,     titulo: 'Erro Crítico!', classe: 'estado-erro', persistente: false, tempo: 4000 },
+      'info':       { layout: 'centro', icone: ICONES.info,     titulo: 'Informação', classe: 'estado-info', persistente: false, tempo: 3000 },
+      'aviso':      { layout: 'centro', icone: ICONES.aviso,    titulo: 'Atenção', classe: 'estado-aviso', persistente: false, tempo: 3000 },
     };
 
-    const config = configuracoesToast[estado];
-    if (!config) return;
+    const base = configuracoesBase[estado];
+    if (!base) return;
+
+    const config = { ...base, ...opcoesExtras };
+    if (base.layout === 'centro') config.layout = 'centro';
 
     this._injetarCSS();
     this._ocultarStatus(true); 
@@ -272,15 +307,15 @@ export const AvisoManager = {
     const aviso = this._prepararElementoToast();
     let htmlContent = '';
 
-    if (config.persistente) {
+    if (config.layout === 'canto') {
       htmlContent += `<div class="am-icone ${config.anim || ''}">${config.icone}</div>`;
       htmlContent += `<div class="am-texto">${config.texto}</div>`;
       aviso.classList.add('pos-canto');
     } else {
       htmlContent += `<button class="am-btn-fechar-abs" id="am-fechar-btn">${ICONES.fecharX}</button>`;
-      htmlContent += `<div class="am-icone-grande">${config.icone}</div>`;
+      htmlContent += `<div class="am-icone-grande ${config.anim || ''}">${config.icone}</div>`;
       htmlContent += `<div class="am-titulo">${config.titulo}</div>`;
-      htmlContent += `<div class="am-mensagem">${textoCustomizado || 'Operação finalizada.'}</div>`;
+      htmlContent += `<div class="am-mensagem">${textoCustomizado || 'Aguarde...'}</div>`;
       aviso.classList.add('pos-centro');
       if (config.classe) aviso.classList.add(config.classe);
     }
@@ -290,11 +325,13 @@ export const AvisoManager = {
     requestAnimationFrame(() => aviso.classList.add('ativo'));
 
     if (!config.persistente) {
-      document.getElementById('am-fechar-btn').onclick = () => this._ocultarStatus();
+      const btnFechar = aviso.querySelector('#am-fechar-btn');
+      if (btnFechar) btnFechar.onclick = () => this._ocultarStatus();
+
       this._timerOcultar = setTimeout(() => {
         this._ocultarStatus();
         if (estado === 'erro') this._lidarComErroDoBackground();
-      }, config.tempo);
+      }, config.tempo || 3000);
     }
   },
 }

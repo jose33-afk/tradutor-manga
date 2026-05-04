@@ -96,90 +96,9 @@ const PipelineManga = {
     if (this.estado.capituloFinalizado) return;
     if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
     
-    
-    
-    // Teste 2.1: Metralhadora de Toasts (Race Condition)
-    console.log("💥 Teste 2.1: Disparando múltiplos Toasts quase ao mesmo tempo...");
-    this._AVISOS.mostrarStatus('carregando', 'Ação 1');
-    setTimeout(() => this._AVISOS.mostrarStatus('descendo', 'Ação 2 (Sobrescreveu!)'), 50);
-    setTimeout(() => this._AVISOS.mostrarStatus('aviso', 'Ação 3 (Centro!)'), 100);
-    
-    // Verificação manual: Apenas o "Ação 3" deve ficar na tela no centro, e depois sumir sem deixar erros no console.
-    await new Promise(r => setTimeout(r, 4000));
-    if(document.getElementById('am-toast')) {
-      console.error("🚨 FALHA: O Toast fantasma ficou preso no DOM!");
-    } else {
-      console.log("✅ Sucesso: Sem Toasts fantasmas.");
-    }
-
-    // Teste 2.2: Cancelamento Abrupto de Animação
-    console.log("💥 Teste 2.2: Chamando ocultar() antes de renderizar e no meio da animação...");
-    this._AVISOS.mostrarStatus('info', 'Piscou!');
-    this._AVISOS.mostrarStatus('ocultar'); // Oculta na mesma fração de segundo
-    
-    setTimeout(() => {
-      this._AVISOS.mostrarStatus('erro', 'Deu erro crítico!');
-      // Oculta no exato instante que a opacidade está indo para 1
-      setTimeout(() => this._AVISOS.mostrarStatus('ocultar'), 150); 
-    }, 1000);
-
-    await new Promise(r => setTimeout(r, 3000));
-    if(document.getElementById('am-toast')) {
-      console.error("🚨 FALHA: Ocultar() não conseguiu limpar o DOM adequadamente.");
-    }
-
-    // Teste 2.3: Interação Manual do Usuário vs Timer
-    console.log("💥 Teste 2.3: Fechar pelo (X) antes do Timer agir.");
-    this._AVISOS.mostrarStatus('info', 'Clique rápido no X do aviso!');
-    // Se o Timer não for limpo, ele tentará deletar um elemento que o usuário já deletou, gerando erro silencioso.
-    
-    // Teste 2.4: Múltiplos Modais (Comportamento Extremo)
-    console.log("💥 Teste 2.4: Invocando dois modais ao mesmo tempo (O sistema deve lidar ou substituir).");
-    this._AVISOS.verificarSecontinua({ titulo: 'Modal 1', mensagem: 'Fiquei preso?' });
-    const respos = await this._AVISOS.verificarSecontinua({ titulo: 'Modal 2', mensagem: 'Sobrescrevi o 1?' });
-    console.log(respos)
-    console.log("✅ FASE 2 CONCLUÍDA! Verifique se há erros vermelhos no Console.");
-
-
-  console.log("🔥 [Fase 2] Subindo modal com opções...");
-  console.log("👉 AÇÃO ESPERADA: Tente clicar no botão Confirmar sem selecionar nada (deve estar bloqueado). Depois selecione 'Espanhol' e confirme.");
-
-  const resultadoSelecionado = await this._AVISOS.verificarSecontinua({
-    titulo: 'Qual o idioma original?',
-    mensagem: 'Selecione um idioma para destravar o botão.',
-    btnSim: 'Confirmar Escolha',
-    btnNao: 'Cancelar',
-    opcoesSelect: [
-      { valor: 'ja', texto: 'Japonês' },
-      { valor: 'ko', texto: 'Coreano' },
-      { valor: 'es', texto: 'Espanhol' }
-    ]
-  });
-
-
-    console.log("%c✅ [SUCESSO] O modal capturou e retornou a string correta: " + resultadoSelecionado, "color: #10b981; font-weight: bold; font-size: 14px;");
-
- 
-    console.log("⏱️ [Passo 1] Mostrando Persistente no CANTO (Mapeando...)");
-    this._AVISOS.mostrarStatus('descendo', 'Extraindo 100 imagens...');
-    
-    await Utils.esperar(2500); // Fica na tela por 2.5s
-
-    console.log("⏱️ [Passo 2] Trocando o do CANTO (Processando OCR...)");
-    // Como é persistente, não some sozinho. Ao chamar de novo, ele deve apenas trocar o texto e o ícone sem piscar a tela agressivamente.
-    this._AVISOS.mostrarStatus('carregando', 'Binarizando via Canvas...');
-
-    await Utils.esperar(2500); // Fica na tela por 2.5s
-
-    console.log("💥 [Passo 3] Finalizando com Temporário no CENTRO (Sucesso!)");
-    // Este deve apagar o do canto, surgir no meio da tela no formato Card Modal, e sumir sozinho após 2 segundos.
-    this._AVISOS.mostrarStatus('fechar', 'Capítulo 100% processado e limpo!');
-    
-    console.log("👉 AÇÃO ESPERADA: Não faça nada. O Card do centro DEVE sumir sozinho em 2 segundos e a tela deve ficar limpa.");
-
-
-
-
+    EventManager.init()
+  
+   
   //   if (!this.estado.scrollConcluido) {
   //     const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
 
@@ -452,8 +371,8 @@ const UrlMonitor = {
   async _lidarComMudanca(novaUrl, novaAssinatura) {
     if (!EventManager.permissaoParaRodar) return;
     clearInterval(this._intervaloId);
-    this._verificando = false;
 
+    this._verificando = false;
     this._cacheUrlLimpa = novaUrl;
     this._cacheAssinatura = novaAssinatura;
 
@@ -496,17 +415,37 @@ const UrlMonitor = {
           estaCorrendo: true
       }, 'aba');
 
-      PipelineManga.executarTrabalho();
+      //PipelineManga.executarTrabalho(); DESATIVADO, Pipeline indisponivel por enquanto.
       this._iniciarVigia();
       return;
     }
     
     if (config.jaConfirmou && config.estaCorrendo) {
-      this._AVISOS.mostrarStatus('carregando', 'Traduzindo novo capítulo...');
+      const origemStr = String(config.idiomaOrigem || 'auto').toUpperCase();
+      const destinoStr = String(config.idiomaConfig || 'pt').toUpperCase();
+
+      const continuar = await this._AVISOS.verificarSecontinua({
+        titulo: 'Próximo Capítulo!',
+        mensagem: `Continuando tradução automática (${origemStr} ➔ ${destinoStr}).`,
+        btnSim: 'Traduzir Agora',
+        btnNao: 'Pausar',
+        tempoAutoFechamento: 5000 // 5s
+      });
+
+      if (continuar === false) {
+        await Utils.gerenciarStorage("salvar", { jaConfirmou:false, estaCorrendo: false }, "aba");
+        this._AVISOS.mostrarStatus('info', 'Tradução pausada. Inicie manualmente quando desejar.');
+        this._iniciarVigia();
+        return;
+      }
+
+      this._AVISOS.mostrarStatus('carregando', 'Traduzindo novo capítulo...', { persistente: false, tempo: 3000 });
+
       // PipelineManga.executarTrabalho(); DESATIVADO ATE TERMINAR O PIPELINE
     }
 
     this._iniciarVigia();
+
     // Antes de prosseguir terminar de migrar pro Utils.gerenciarStorage().
     // Eu estava aqui seguindo o gemini. depois de terminar falta testar e verificar todos os bugs, mas so vai dar 
     // para testar 100% quando terminar o Pipeline.
@@ -552,19 +491,18 @@ const EventManager = {
     this.permissaoParaRodar = await this._perguntarAoBackground(); // 1.5
     this.conexaoBackground();
     await this._verificarEstadoPosF5();
-
-    UrlMonitor.init();
+    
   },
 
   async conexaoBackground() {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === 'INICIAR_TRADUCAO') {
         this.permissaoParaRodar = true;
-        // PipelineManga.init(); testes 
-        UrlMonitor.init()
+        UrlMonitor.init();
+        // PipelineManga.init();     ScrollManager.executarDescidaPrincipal(); ficaria aqui.
         sendResponse(); // 1.6
       }
-
+      
       if (request.action === 'PARAR_TRADUCAO') {
         this.permissaoParaRodar = false;
         sendResponse(); 
@@ -749,18 +687,18 @@ const ScrollManager = {
   async executarDescidaPrincipal() {
     if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
     
+    this._AVISOS.mostrarStatus('carregando', 'Mapeando páginas');
+
     let elementoScroll = await this._encontrarElementoComRetry(); 
     const sucesso = await this.carregarPaginaManga(elementoScroll);
     
     if (sucesso) {
-      this._AVISOS.mostrarStatus('subindo');
+      this._AVISOS.mostrarStatus('subindo', { tempo: 2000 });
 
       const alvoEvento = this._getAlvoEvento(elementoScroll);
-      alvoEvento.scrollTo({ top: 0, behavior: 'auto' });
+      alvoEvento.scrollTo({ top: 0, behavior: 'auto' }); // Ajustar isso ta teleportando pro topo.
 
-      await Utils.esperar(2000);
-      this._AVISOS.mostrarStatus('fechar');
-
+      this._AVISOS.mostrarStatus('fechar', 'Pronto para proxima fase');
       //PipelineManga.init(); DESATIVADO PARA TESTES.
     } else { 
       this._AVISOS.mostrarStatus('erro', 'Falha ao percorrer o mangá.'); 
@@ -770,13 +708,9 @@ const ScrollManager = {
   },
 }
 
-
 PipelineManga.init()
 
 /*
-  APOS A FUNCAO DE SALVAR E BUSCAR DADOS ESTIVER PRONTA EU VOU REFATORAR O MONUTOR DE ULR PARA UM QUE USA
-  A URL E A IMPRESSAO PRA SABER SE MUDOU, PARA MAIS DETALHES ESTAO NO GEMINI E NA ISSUES DO GIT.
-  
   - POS ISSO EU POSSO VOLTAR PRO PIPELINE 
   - E DEPOIS PRO IMGSCANNER.
 */
