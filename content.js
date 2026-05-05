@@ -48,79 +48,36 @@ const Utils = {
 }
 
 const PipelineManga = {
-  _AVISOS: null, 
+  Avisos: null,
   estado: {
-    scrollConcluido: true, // TRUE - para testes, valor original - false. e isso vai ficar no storage e so vai ficar para um acesso mais rapido
+    eventosProntos: false,
+    scrollConcluido: false,
     imagensMapeadas: false,
     enviarProBackground: false, 
     capituloFinalizado: false,
-    eventosProntos: false,
   },
 
   resetarPipeline() {
-    console.log("[Pipeline] Resetando estado (Novo capítulo detectado)."); //testes
+    console.log("[Pipeline] Resetando estado (Novo capítulo detectado)."); // Somente para TESTES.
 
-    this._AVISOS = null;
-    this.estado.scrollConcluido = true; // TRUE - para testes, valor original - false.
+    this.estado.scrollConcluido = false; 
     this.estado.imagensMapeadas = false;
     this.estado.enviarProBackground = false;
     this.estado.capituloFinalizado = false;
+    this.estado.eventosProntos = false;
     this._primeiraImagemSrc = null;
 
     if (typeof ScrollManager !== 'undefined') ScrollManager.destruirMemoria();
     if (typeof ImageScanner !== 'undefined') ImageScanner.destruirMemoria();
   },
 
-  // async _garantirEtapaVital(tarefaCallback, msgCarregando, dadosAviso) {
-  //   let sucesso = false;
-
-  //   while (!sucesso) {
-  //     this._AVISOS.mostrarStatus('carregando', msgCarregando);
-  //     sucesso = await tarefaCallback();
-  //     console.log('sucesso teste:', sucesso);
-
-  //     if (!sucesso) {
-  //       const tentarDeNovo = await this._AVISOS.verificarSecontinua({
-  //         titulo: dadosAviso.titulo,
-  //         mensagem: dadosAviso.mensagem,
-  //         btnSim: 'Repetir',
-  //         btnNao: 'Cancelar'
-  //       });
-  //     }
-  //   }
-  // },
-
-
-
   async init() {
-    if (this.estado.capituloFinalizado) return;
-    if (!this._AVISOS) this._AVISOS = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
+    if (!this.Avisos) this.Avisos = await Utils.importarModulo('avisoManager.js', 'AvisoManager');
     
-    EventManager.init()
-  
-   
-  //   if (!this.estado.scrollConcluido) {
-  //     const scrollSucesso = await ScrollManager.executarDescidaPrincipal();
-
-  //     if (!scrollSucesso) {
-  //       EventManager.pararOperacaoGlobal();
-  //       return;
-  //     } 
-
-  //     this.estado.scrollConcluido = true; 
-
-  //     if (typeof ScrollManager !== 'undefined') ScrollManager.destruirMemoria();
-  //   }
-
-  //   if (!this.estado.imagensMapeadas) {
-  //     console.log("[Pipeline] Identificado: Falta mapear as imagens.");
-  //     setTimeout(() => ImageScanner.processar(), 5000);
-  //   }
-
-  //   this.estado.capituloFinalizado = true; // 2.9
-  }
-
-
+    if (!this.estado.eventosProntos) {
+      await EventManager.init();
+    }
+  },
 }
 
 const ImageScanner = {
@@ -454,60 +411,76 @@ const UrlMonitor = {
 
 const EventManager = {
   permissaoParaRodar: false,
+  _listenerAtivo: false,
 
-  pararOperacaoGlobal() {
+  async pararOperacaoGlobal() {
     this.permissaoParaRodar = false;
 
     try {
-     chrome.runtime.sendMessage({ // 3.4
-        action: "GERENCIAR_STORAGE_ABA",
-        escopo: "aba",
-        metodo: "salvar",
-        dados: { estaCorrendo: false }
-      });
+      const resposta = await Utils.gerenciarStorage("salvar", { estaCorrendo: false }, "aba");
+      return resposta?.sucesso || false;
     } catch(e) {
-      console.warn("Background inacessível no momento do desligamento.");
+      console.warn("Background inacessível no momento do desligamento.", e);
+      return false;
     }
   },
 
   async _perguntarAoBackground() {
     try {
-      const resposta = await chrome.runtime.sendMessage({ // 3.4
-        action: "GERENCIAR_STORAGE_ABA",
-        escopo: "aba",
-        metodo: "buscar",
-        dados: "estaCorrendo"
-      });
+      const resposta = await Utils.gerenciarStorage("buscar", "estaCorrendo", "aba");
 
-      if (resposta && resposta.sucesso) return resposta.dados;
-      return false;
+      if (resposta && resposta.sucesso) return { sucesso: true, valor: resposta.dados };
+      else return { sucesso: false, erro: resposta?.erro || "falha na ao buscar o valor" };
     } catch(e) {
-      return false;
+      return { sucesso: false, erro: e };
     }
   },
 
   async init() {
     await Utils.getConfigHardware();
-    this.permissaoParaRodar = await this._perguntarAoBackground(); // 1.5
-    this.conexaoBackground();
-    await this._verificarEstadoPosF5();
+
+    const sucessoBusca = await this._perguntarAoBackground() // 1.5
+    if (!sucessoBusca.sucesso) {
+      console.warn(sucessoBusca.erro)
+      return false;
+    }
+
+    this.permissaoParaRodar = !!sucessoBusca.valor; // 3.5
+
+    const conexaoPronta = (await this.conexaoBackground());
+    if (!conexaoPronta.sucesso) {
+      console.log(conexaoPronta?.erro || '[ conexaoBackground() ]: Erro ao estabelecer uma conexao');
+      return false;
+    }
+    
+    // this.conexaoBackground();
+    // await this._verificarEstadoPosF5();
     
   },
 
   async conexaoBackground() {
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === 'INICIAR_TRADUCAO') {
-        this.permissaoParaRodar = true;
-        UrlMonitor.init();
-        // PipelineManga.init();     ScrollManager.executarDescidaPrincipal(); ficaria aqui.
-        sendResponse(); // 1.6
-      }
-      
-      if (request.action === 'PARAR_TRADUCAO') {
-        this.permissaoParaRodar = false;
-        sendResponse(); 
-      }
-    });
+    if (this._listenerAtivo) return { sucesso: true };
+    
+    try {
+      chrome.runtime.onMesage.addListener((request, sender, sendResponse) => {
+        if (request.action === 'INICIAR_TRADUCAO') {
+          this.permissaoParaRodar = true;
+          // PipelineManga.init();    //DESATIVADO pipeline em construcao
+          sendResponse(); // 1.6
+        }
+        
+        if (request.action === 'PARAR_TRADUCAO') {
+          this.permissaoParaRodar = false;
+          sendResponse(); 
+        }
+      });
+
+      this._listenerAtivo = true;
+      return { sucesso: true };
+    } catch (e) {
+      this._listenerAtivo = false;
+      return { sucesso: false, erro: e };
+    }
   },
 
   async _verificarEstadoPosF5() { // 2.0
@@ -754,4 +727,5 @@ PipelineManga.init()
   3.2 - Pega só o que vem depois da última '/'
   3.3 - verifica se ambas existem antes de comparar
   3.4 - melhor deixar assim para nao ter que por await nas outras chamadas
+  3.5 - !! garante que null/undefined se tornem o booleano false.
 */
