@@ -681,7 +681,12 @@ const ScrollManager = {
   },
 }
 
-PipelineManga.init()
+async function teste() {
+  const event = await Utils.importarModulo('modules/eventManager.js', 'eventManager');
+  
+}
+
+teste()
 
 /*
   - POS ISSO EU POSSO VOLTAR PRO PIPELINE 
