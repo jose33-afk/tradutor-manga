@@ -27,7 +27,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["filtro.js", "avisoManager.js"],
+      "resources": ["filtro.js", "avisoManager.js", "EventManager.js"],
       "matches": ["<all_urls>"]
     }
   ]
