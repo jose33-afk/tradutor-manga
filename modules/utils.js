@@ -1,7 +1,17 @@
-class Utils {
+export class utils {
   static #config = null;
 
-  async getConfigHardware() {
+  static get config() {
+    return this.#config;
+  }
+
+  static esperar(ms) { 
+    return new Promise(res => setTimeout(res, ms))
+  }
+
+  static async getConfigHardware() {
+    if (this.#config !== null) return this.#config;
+
     const dadosHardware = await StorageManager.buscar('global', 'hardware');
     const perfil = dadosHardware?.perfil || 'NORMAL';
     
@@ -11,7 +21,21 @@ class Utils {
       LOW:    { scroll: 750, retry: 1000, tentativas: 20, debounceWait: 1400, } 
     };
 
-    this.config = configHardware[perfil];
+    this.#config = configHardware[perfil];
+  }
+
+  static async gerenciarStorage(metodo, dados, escopo) {
+    try {
+      return await chrome.runtime.sendMessage({
+        action: "GERENCIAR_STORAGE_ABA",
+        escopo: escopo,
+        metodo: metodo,
+        dados: dados
+      });
+    } catch (e) {
+      console.warn("[UrlMonitor] Falha na comunicação de Storage:", e);
+      return { sucesso: false, dados: null };
+    }
   }
 }
 
