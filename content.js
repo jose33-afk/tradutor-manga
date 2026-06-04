@@ -638,10 +638,15 @@ const ScrollManager = {
 }
 
 
+async function teste() {
+  const moldeUrl = await importarModulo("modules/urlMonitor.js", "UrlMonitor");
+  const aviso = await importarModulo("./avisoManager.js", "AvisoManager")
+  const instancia = new moldeUrl(aviso);
 
+  instancia.init()
+}
 
-
-
+teste()
 /*
   - POS ISSO EU POSSO VOLTAR PRO PIPELINE 
   - E DEPOIS PRO IMGSCANNER.
@@ -659,8 +664,6 @@ const ScrollManager = {
   1.5 - para atualizar caso de F5
   1.6 - confirmando o recebimento do background, senao ele reclama.
   1.7 - Ele checa a URL a cada 1 segundo (não pesa nada no navegador)
-  1.8 - MangaDex ultiliza um sisteminha que adiciona que fica mudando um numero no final da URL,
-        e toda vez que muda uma imagem rolando para baixo  meu programa detecta como se tivesse mudado de capitolo.
   1.9 - Evita rodar dois monitores ao mesmo tempo se chamar a função duas vezes
   2.0 - Nao precisa de nenhum codigo monitorando, pos quando se da F5 o content e recriado.
   2.1 - Trava de segurança

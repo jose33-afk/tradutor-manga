@@ -35,7 +35,8 @@
         "filtro.js", 
         "avisoManager.js", 
         "modules/eventManager.js", 
-        "modules/utils.js"
+        "modules/utils.js",
+        "modules/urlMonitor.js"
     ],
       "matches": ["<all_urls>"]
     }
