@@ -5,14 +5,13 @@ globalThis.importarModulo = async function(nomeArquivo, nomeObj = null) {
 
     if (nomeObj) {
       if (!(nomeObj in modulo)) {
-        console.warn(`Aviso: O objeto/classe '${nomeObj}' não foi exportado de dentro do arquivo '${nomeArquivo}'.`);
+        console.warn(`Aviso: '${nomeObj}' não foi exportado de '${nomeArquivo}'.`);
       }
       return modulo[nomeObj];
     }
-
     return modulo;
   } catch(e) {
-    console.error(`Falha crítica ao carregar o módulo: ${nomeArquivo}`, e);
+    console.error(`Falha crítica ao carregar: ${nomeArquivo}`, e);
     return null;
   }
 };

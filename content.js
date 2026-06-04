@@ -1,6 +1,3 @@
-async function iniciarExtensao() {
-  await import(chrome.runtime.getURL("modules/importarModulo.js"));
-}
 
 // iniciarExtensao e uma funcao de teste
 // Essa parte vai ficar na funcao principal do content.
@@ -689,15 +686,15 @@ const ScrollManager = {
   },
 }
 
-async function teste() {
-  await iniciarExtensao()
-  // const event = await Utils.importarModulo('modules/eventManager.js', 'eventManager');
-  const utils = await importarModulo("modules/utils.js", "utils");
-}
+// async function teste() {
+//   await iniciarExtensao()
+//   // const event = await Utils.importarModulo('modules/eventManager.js', 'eventManager');
+//   const utils = await importarModulo("modules/utils.js", "utils");
+// }
 
-teste()
+// teste()
 
-
+// Estava aqui testando o importarModulo
 async function testarBarreiraDeErros() {
   // 1. Liga o escudo
 
@@ -737,6 +734,7 @@ async function testarBarreiraDeErros() {
 }
 
 testarBarreiraDeErros();
+
 
 /*
   - POS ISSO EU POSSO VOLTAR PRO PIPELINE 

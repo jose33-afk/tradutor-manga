@@ -22,12 +22,21 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["storageManager.js", "content.js"]
+      "js": [
+        "modules/importarModulo.js",
+        "storageManager.js", 
+        "content.js"
+      ]
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["modules/importarModulo.js", "filtro.js", "avisoManager.js", "modules/eventManager.js", "modules/utils.js"],
+      "resources": [
+        "filtro.js", 
+        "avisoManager.js", 
+        "modules/eventManager.js", 
+        "modules/utils.js"
+    ],
       "matches": ["<all_urls>"]
     }
   ]
