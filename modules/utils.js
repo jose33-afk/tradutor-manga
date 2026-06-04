@@ -37,10 +37,21 @@ export class utils {
       return { sucesso: false, dados: null };
     }
   }
+
+  static debounce(func, delay) { 
+    let timeoutId;
+    return (...args) => { // 1.1
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func(...args), delay);
+    };
+  }
 }
 
 
 /*
   Classes static: Uso quando são funções utilitárias que não guardam histórico
-  e cujas configurações centrais são definidas uma única vez.
+  e cujas configurações centrais são definidas uma única vez, e nao lidam com eventos.
+
+  1.1 - o debounce e importante ele estar assim pra nao mexer com this.
+      <-- Arrow function mantêm o 'this' original de quem chamou
 */

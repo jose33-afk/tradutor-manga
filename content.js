@@ -1,56 +1,7 @@
 
-// iniciarExtensao e uma funcao de teste
-// Essa parte vai ficar na funcao principal do content.
 
 
-//const Utils = {
-  // config: null,
-
-  // async gerenciarStorage(metodo, dados, escopo) {
-  //   try {
-  //     return await chrome.runtime.sendMessage({
-  //       action: "GERENCIAR_STORAGE_ABA",
-  //       escopo: escopo,
-  //       metodo: metodo,
-  //       dados: dados
-  //     });
-  //   } catch (e) {
-  //     console.warn("[UrlMonitor] Falha na comunicação de Storage:", e);
-  //     return { sucesso: false, dados: null };
-  //   }
-  // },
-
-  // esperar: (ms) => new Promise(res => setTimeout(res, ms)),
-
-  // debounce: (func, delay) => { // 1.4
-  //   let timeoutId;
-  //   return (...args) => {
-  //     clearTimeout(timeoutId);
-  //     timeoutId = setTimeout(() => func(...args), delay);
-  //   };
-  // },
-
-  // async importarModulo(nomeArquivo, nomeObj = null) {
-  //   const caminho = chrome.runtime.getURL(nomeArquivo);
-  //   const modulo = await import(caminho);
-
-  //   if (nomeObj) return modulo[nomeObj];
-  //   return modulo;
-  // },
-
-  // async getConfigHardware() {
-  //   const dadosHardware = await StorageManager.buscar('global', 'hardware');
-  //   const perfil = dadosHardware?.perfil || 'NORMAL';
-    
-  //   const configHardware = {
-  //     ULTRA:  { scroll: 250, retry: 300, tentativas: 40, debounceWait: 800, }, 
-  //     NORMAL: { scroll: 400, retry: 500, tentativas: 30, debounceWait: 1200, }, 
-  //     LOW:    { scroll: 750, retry: 1000, tentativas: 20, debounceWait: 1400, } 
-  //   };
-
-  //   this.config = configHardware[perfil];
-  // },
-//}
+ 
 
 const PipelineManga = {
   Avisos: null,
@@ -686,54 +637,9 @@ const ScrollManager = {
   },
 }
 
-// async function teste() {
-//   await iniciarExtensao()
-//   // const event = await Utils.importarModulo('modules/eventManager.js', 'eventManager');
-//   const utils = await importarModulo("modules/utils.js", "utils");
-// }
-
-// teste()
-
-// Estava aqui testando o importarModulo
-async function testarBarreiraDeErros() {
-  // 1. Liga o escudo
-
-  console.log("🛡️ INICIANDO TESTES DA BARREIRA...");
-
-  // ========================================================
-  // TESTE 1: ARQUIVO FANTASMA (Dispara o CATCH vermelho)
-  // O que simula: Você esqueceu de colocar o arquivo na pasta, 
-  // ou não botou no manifest, ou digitou o nome do arquivo errado.
-  // ========================================================
-  console.log("👉 Teste 1: Tentando importar um arquivo que não existe");
-  
-  const operarioZumbi = await importarModulo("arquivo_que_nao_existe.js");
-  
-  // A barreira tem que retornar 'null' em vez de crashar a extensão
-  if (operarioZumbi === null) {
-    console.log("✅ Defesa 1 Funcionou: O sistema continuou rodando de boa porque a função devolveu null.");
-  }
 
 
-  // ========================================================
-  // TESTE 2: EXPORT ERRADO (Dispara o WARN amarelo)
-  // O que simula: O arquivo utils.js existe, mas você digitou 
-  // o nome da classe errado no segundo parâmetro (ex: 'Utilz' com Z)
-  // ========================================================
-  console.log("\\n👉 Teste 2: Tentando puxar uma classe com nome errado");
-  
-  // No seu utils.js a classe se chama 'utils', vou pedir 'UtilsComNomeErrado'
-  const classeMisteriosa = await importarModulo("modules/utils.js", "UtilsComNomeErrado");
-  
-  // A barreira vai dar um console.warn te xingando, e o retorno será undefined
-  if (classeMisteriosa === undefined) {
-    console.log("✅ Defesa 2 Funcionou: O sistema te avisou que o export não existe.");
-  }
 
-  console.log("\\n🚀 Testes finalizados. A sua extensão não crashou!");
-}
-
-testarBarreiraDeErros();
 
 
 /*
@@ -750,7 +656,6 @@ testarBarreiraDeErros();
         usando o queryAll eu teria que procurar e fazer a lista,
         mas e um metodo limitado ja que so funciona com '<img>' e outras tags.
   1.3 - o segundo alvo nao e o ALVO ensi e o proximo pai. 
-  1.4 - o debounce e importante ele estar assim pra nao mexer com this.
   1.5 - para atualizar caso de F5
   1.6 - confirmando o recebimento do background, senao ele reclama.
   1.7 - Ele checa a URL a cada 1 segundo (não pesa nada no navegador)
