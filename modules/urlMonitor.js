@@ -5,6 +5,7 @@ export class UrlMonitor {
   #Avisos = null;
   #carregouDOM = null;
   #verificando = false;
+  #isMangaDex = false;
 
   constructor(avisoManager) {
     if (!avisoManager || typeof avisoManager.verificarSecontinua !== 'function') {
@@ -23,27 +24,27 @@ export class UrlMonitor {
     this.#Avisos = null;
     this.#carregouDOM = null;
     this.#verificando = false;
+    this.#isMangaDex = false;
   }
 
   async init() {
     if (this.#intervaloId) clearInterval(this.#intervaloId);
 
+    this.#isMangaDex = location.hostname.includes('mangadex.org');
     this.#cacheUrlLimpa = this.#limparUrl(location.href);
-    console.log(this.#cacheUrlLimpa)
   }
 
-  // Parei aqui, esta otimizando limparUlr tem
-  // pequenos ajustes finos que vai melhora-la.
   #limparUrl(urlBruta) {
-    try {
-      if (urlBruta.includes('mangadex.org')) return urlBruta.replace(/\/\d+\/?$/, ''); // 1.1
+    if (typeof urlBruta !== 'string') {
+      console.warn("Aviso: URL inválida recebida. Esperado 'string', mas chegou:", typeof urlBruta, urlBruta);
       return urlBruta;
-    } catch(e) {
-      return urlBruta;
-    }
-  }
+    };
 
- 
+    if (this.#isMangaDex) {
+      return urlBruta.replace(/\/\d+\/?$/, ''); // 1.1
+    }
+    return urlBruta;
+  }
 }
 
 /*
