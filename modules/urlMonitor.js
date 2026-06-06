@@ -3,6 +3,7 @@ export class UrlMonitor {
   #cacheUrlLimpa= null;
   #cacheAssinatura = null;
   #Avisos = null;
+  #Utils = null;
   #carregouDOM = null;
   #verificando = false;
   #isMangaDex = false;
@@ -22,6 +23,7 @@ export class UrlMonitor {
     this.#cacheUrlLimpa= null;
     this.#cacheAssinatura = null;
     this.#Avisos = null;
+    this.#Utils = null;
     this.#carregouDOM = null;
     this.#verificando = false;
     this.#isMangaDex = false;
@@ -29,6 +31,8 @@ export class UrlMonitor {
 
   async init() {
     if (this.#intervaloId) clearInterval(this.#intervaloId);
+
+    this.#Utils = await importarModulo("modules/utils.js", "utils");
 
     this.#isMangaDex = location.hostname.includes('mangadex.org');
     this.#cacheUrlLimpa = this.#limparUrl(location.href);
@@ -39,7 +43,10 @@ export class UrlMonitor {
       //chama o event managar para para resetar o pipeline.
     }
 
-
+    await this.#Utils.gerenciarStorage("salvar", { 
+      cacheUrl: this.#cacheUrlLimpa, 
+      cacheAssinatura: this.#cacheAssinatura 
+    }, "aba");
   }
 
   #limparUrl(urlBruta) {
@@ -69,10 +76,47 @@ export class UrlMonitor {
         if (impressao.length > 10) return impressao;
       }
       
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      await this.#Utils.esperar(delayMs);
     }
 
     return null;
+  }
+
+  //Eu estava aqui o vigia n esta funcionando eu devo ter esquecido de algo
+  // e falta testar conforme estava fazendo abaixo
+  #iniciarVigia() {
+    this.#intervaloId = setInterval(async () => {
+      if (this.#verificando) return;
+      this.#verificando = true;
+
+      try {
+        const urlAtual = this.#limparUrl(location.href);
+        const mudouUrl = urlAtual !== this.#cacheUrlLimpa;
+
+        let mudouAssinatura = false;
+        let assinaturaAtual = null;
+
+        if (!mudouUrl) {
+          assinaturaAtual = await this.#gerarAssinaturaDOM();
+          mudouAssinatura = (assinaturaAtual && this.#cacheAssinatura) 
+              ? (assinaturaAtual !== this.#cacheAssinatura)
+              : false;
+        }
+
+        if (mudouUrl || mudouAssinatura) {
+          if (mudouUrl && !assinaturaAtual) assinaturaAtual = await this.#gerarAssinaturaDOM();
+          
+          console.log('mudou url ou assinatura', mudouUrl, 'assinatura?', mudouAssinatura)
+          console.log('anteriores: url:', this.#cacheUrlLimpa, 'assinatura', this.#cacheAssinatura)
+          //this.#lidarComMudanca(urlAtual, assinaturaAtual);
+        }
+
+        console.log('nao mudou ')
+
+      } finally {
+        this.#verificando = false; // 1.3
+      }
+    }, 1000);
   }
 }
 
@@ -80,4 +124,6 @@ export class UrlMonitor {
   1.1 - MangaDex ultiliza um sisteminha que adiciona que fica mudando um numero no final da URL,
         e toda vez que muda uma imagem rolando para baixo  meu programa detecta como se tivesse mudado de capitolo.
   1.2 - Pega só o que vem depois da última '/'
+  1.3 - Mesmo que qualquer coisa dê erro fatal dentro do 'try', o JS joga a trava pra false
+        garantindo que o monitor nunca trave silenciosamente.
 */

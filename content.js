@@ -282,6 +282,9 @@ const UrlMonitor = {
   },
 
   async _lidarComMudanca(novaUrl, novaAssinatura) {
+
+    // preciso por um if verificando se tem assinatura ou ulr faltantes 
+    // se uma das duas faltar eu gero aqui
     if (!EventManager.permissaoParaRodar) return;
     clearInterval(this._intervaloId);
 
