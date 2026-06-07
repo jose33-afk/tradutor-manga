@@ -38,15 +38,17 @@ export class UrlMonitor {
     this.#cacheUrlLimpa = this.#limparUrl(location.href);
     this.#cacheAssinatura = await this.#gerarAssinaturaDOM();
 
-    if (!this.#cacheAssinatura) {
-      console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
-      //chama o event managar para para resetar o pipeline.
-    }
+    // if (!this.#cacheAssinatura) {
+    //   console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
+    //   //chama o event managar para para resetar o pipeline.
+    // }
 
-    await this.#Utils.gerenciarStorage("salvar", { 
-      cacheUrl: this.#cacheUrlLimpa, 
-      cacheAssinatura: this.#cacheAssinatura 
-    }, "aba");
+    // await this.#Utils.gerenciarStorage("salvar", { 
+    //   cacheUrl: this.#cacheUrlLimpa, 
+    //   cacheAssinatura: this.#cacheAssinatura 
+    // }, "aba");  
+    
+    // this.#iniciarVigia();
   }
 
   #limparUrl(urlBruta) {
@@ -67,28 +69,34 @@ export class UrlMonitor {
         img => img.naturalHeight > img.naturalWidth && img.naturalWidth > 450
       );
     
-      if (arrayImgs.length >= 3) {
-        let impressao = arrayImgs.slice(0, 2)
-            .map(img => {
-              return img.src.replace(/^blob:/, '').split('/').pop().substring(0, 40); // 1.2
-            }).join('');
+      if (arrayImgs.length >= 2) {
+        const impressao = arrayImgs.slice(0, 2)
+          .map(img => {
+            let srcBase = img.src;
 
-        if (impressao.length > 10) return impressao;
-      }
-      
+            if (srcBase.length > 300) { // 1.5
+              const meioSrcBase = Math.floor(srcBase.length / 2);
+              
+              srcBase = srcBase.substring(0, 50) +
+                        srcBase.substring(meioSrcBase, meioSrcBase + 50) +
+                        srcBase.slice(-50);
+              
+              // eu estava aqui terminando de refatorar a funcao de assinatura
+              console.log(srcBase)
+            }
+          });
+      } 
       await this.#Utils.esperar(delayMs);
     }
 
     return null;
   }
 
-  //Eu estava aqui o vigia n esta funcionando eu devo ter esquecido de algo
-  // e falta testar conforme estava fazendo abaixo
   #iniciarVigia() {
     this.#intervaloId = setInterval(async () => {
       if (this.#verificando) return;
       this.#verificando = true;
-
+      
       try {
         const urlAtual = this.#limparUrl(location.href);
         const mudouUrl = urlAtual !== this.#cacheUrlLimpa;
@@ -106,9 +114,7 @@ export class UrlMonitor {
         if (mudouUrl || mudouAssinatura) {
           if (mudouUrl && !assinaturaAtual) assinaturaAtual = await this.#gerarAssinaturaDOM();
           
-          console.log('mudou url ou assinatura', mudouUrl, 'assinatura?', mudouAssinatura)
-          console.log('anteriores: url:', this.#cacheUrlLimpa, 'assinatura', this.#cacheAssinatura)
-          //this.#lidarComMudanca(urlAtual, assinaturaAtual);
+          this.#lidarComMudanca(urlAtual, '45');
         }
 
         console.log('nao mudou ')
@@ -118,6 +124,15 @@ export class UrlMonitor {
       }
     }, 1000);
   }
+
+  async #lidarComMudanca(novaUrl, novaAssinatura) {
+    console.log('antes', novaAssinatura)
+    console.log(novaUrl)
+    novaUrl ||= this.#limparUrl(location.href); // 1.4
+    novaAssinatura ||= await this.#gerarAssinaturaDOM();
+    console.log(novaAssinatura)
+    console.log(novaUrl)
+  }
 }
 
 /*
@@ -126,4 +141,10 @@ export class UrlMonitor {
   1.2 - Pega só o que vem depois da última '/'
   1.3 - Mesmo que qualquer coisa dê erro fatal dentro do 'try', o JS joga a trava pra false
         garantindo que o monitor nunca trave silenciosamente.
+  1.4   if (novaUrl === null || novaUrl === undefined || novaUrl === '') {
+        novaUrl = this._limparUrl(location.href);
+        Para:
+        novaUrl ||= this._limparUrl(location.href);
+  1.5 - parar imagens em Base64 nao afetarem o desempenho.
+}
 */
