@@ -37,18 +37,18 @@ export class UrlMonitor {
     this.#isMangaDex = location.hostname.includes('mangadex.org');
     this.#cacheUrlLimpa = this.#limparUrl(location.href);
     this.#cacheAssinatura = await this.#gerarAssinaturaDOM();
-
-    // if (!this.#cacheAssinatura) {
-    //   console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
-    //   //chama o event managar para para resetar o pipeline.
-    // }
-
-    // await this.#Utils.gerenciarStorage("salvar", { 
-    //   cacheUrl: this.#cacheUrlLimpa, 
-    //   cacheAssinatura: this.#cacheAssinatura 
-    // }, "aba");  
     
-    // this.#iniciarVigia();
+    if (!this.#isAssinaturaValida(this.#cacheAssinatura)) {
+      console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
+      //chama o event managar para para resetar o pipeline.
+    }
+
+    await this.#Utils.gerenciarStorage("salvar", { 
+      cacheUrl: this.#cacheUrlLimpa, 
+      cacheAssinatura: this.#cacheAssinatura 
+    }, "aba");  
+    
+    this.#iniciarVigia();
   }
 
   #limparUrl(urlBruta) {
@@ -80,11 +80,11 @@ export class UrlMonitor {
               srcBase = srcBase.substring(0, 50) +
                         srcBase.substring(meioSrcBase, meioSrcBase + 50) +
                         srcBase.slice(-50);
-              
-              // eu estava aqui terminando de refatorar a funcao de assinatura
-              console.log(srcBase)
             }
-          });
+            return this.#gerarHash(`${srcBase}-${img.naturalHeight}`);
+          }).join('-');
+
+        if (impressao.length > 5) return impressao;
       } 
       await this.#Utils.esperar(delayMs);
     }
@@ -92,6 +92,22 @@ export class UrlMonitor {
     return null;
   }
 
+  #gerarHash(string) {
+    let hash = 0;
+    for (let i = 0; i < string.length; i++) {
+      const char = string.charCodeAt(i);
+      hash = (hash << 5) - hash + char; // 1.6 
+      hash &= hash; // 1.7
+    }
+    return Math.abs(hash).toString(36); // 1.8
+  }
+
+  #isAssinaturaValida(assinatura) {
+    if (typeof assinatura !== 'string' || assinatura.length < 5) return false;
+    const formatoExato = /^[a-z0-9]+-[a-z0-9]+$/i; // 1.9
+    return formatoExato.test(assinatura);
+  }
+ 
   #iniciarVigia() {
     this.#intervaloId = setInterval(async () => {
       if (this.#verificando) return;
@@ -114,7 +130,7 @@ export class UrlMonitor {
         if (mudouUrl || mudouAssinatura) {
           if (mudouUrl && !assinaturaAtual) assinaturaAtual = await this.#gerarAssinaturaDOM();
           
-          this.#lidarComMudanca(urlAtual, '45');
+          this.#lidarComMudanca(urlAtual, assinaturaAtual);
         }
 
         console.log('nao mudou ')
@@ -126,12 +142,26 @@ export class UrlMonitor {
   }
 
   async #lidarComMudanca(novaUrl, novaAssinatura) {
-    console.log('antes', novaAssinatura)
-    console.log(novaUrl)
-    novaUrl ||= this.#limparUrl(location.href); // 1.4
-    novaAssinatura ||= await this.#gerarAssinaturaDOM();
-    console.log(novaAssinatura)
-    console.log(novaUrl)
+    console.log('--- INÍCIO DA DETECÇÃO ---');
+    console.log('1. Url recebida:', novaUrl);
+    console.log('2. Assinatura recebida:', novaAssinatura);
+
+    novaUrl ||= this.#limparUrl(location.href);
+
+    if (!this.#isAssinaturaValida(novaAssinatura)) {
+      console.warn('Assinatura ausente ou inválida. Gerando uma nova...');
+      novaAssinatura = await this.#gerarAssinaturaDOM();
+    }
+
+    if (!this.#isAssinaturaValida(novaAssinatura)) {
+      console.error("Erro Crítico: Assinatura do DOM falhou (página sem imagens válidas)!");
+      // EventManager.resetarPipeline();
+      return; 
+    }
+
+    console.log('--- DADOS VALIDADOS ---');
+    console.log('3. Url final pronta:', novaUrl);
+    console.log('4. Assinatura final pronta:', novaAssinatura);
   }
 }
 
@@ -146,5 +176,10 @@ export class UrlMonitor {
         Para:
         novaUrl ||= this._limparUrl(location.href);
   1.5 - parar imagens em Base64 nao afetarem o desempenho.
-}
+  1.6 - Multiplica o hash por 31 (hash * 32 - hash) isso e a mesma coisa que 
+        hash * 32 - 1 == 31. o + char e so para somar com resultado anterior.
+  1.7 - Força o JavaScript a tratar como Inteiro de 32 bits (evita estouro de memória)
+        Para o numero n ficar grande demais.
+  1.8 - Converte o resultado para positivo e depois para Base36 (letras minúsculas e números)
+  1.9 - Formato esperado: hash1-hash2 (Ex: "qum1ig-s1ed6i")
 */
