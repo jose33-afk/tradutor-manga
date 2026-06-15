@@ -32,11 +32,11 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "modules/urlMonitor.js",
         "filtro.js", 
         "avisoManager.js", 
         "modules/eventManager.js", 
-        "modules/utils.js",
-        "modules/urlMonitor.js"
+        "modules/utils.js"
     ],
       "matches": ["<all_urls>"]
     }

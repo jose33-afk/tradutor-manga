@@ -7,6 +7,7 @@ export class UrlMonitor {
   #carregouDOM = null;
   #verificando = false;
   #isMangaDex = false;
+  #gatilhoVerificacao = null;
 
   constructor(avisoManager) {
     if (!avisoManager || typeof avisoManager.verificarSecontinua !== 'function') {
@@ -38,17 +39,19 @@ export class UrlMonitor {
     this.#cacheUrlLimpa = this.#limparUrl(location.href);
     this.#cacheAssinatura = await this.#gerarAssinaturaDOM();
     
-    if (!this.#isAssinaturaValida(this.#cacheAssinatura)) {
-      console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
-      //chama o event managar para para resetar o pipeline.
-    }
+    // if (!this.#isAssinaturaValida(this.#cacheAssinatura)) {
+    //   console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
+    //   //chama o event managar para para resetar o pipeline.
+    // }
 
     await this.#Utils.gerenciarStorage("salvar", { 
       cacheUrl: this.#cacheUrlLimpa, 
       cacheAssinatura: this.#cacheAssinatura 
     }, "aba");  
     
-    this.#iniciarVigia();
+    
+    this.#gatilhoVerificacao = this.#Utils.debounce(() => this.#verificarAlteracoes(), 500); //2.0
+    this.#ativarMonitoramentoURL();
   }
 
   #limparUrl(urlBruta) {
@@ -108,38 +111,68 @@ export class UrlMonitor {
     return formatoExato.test(assinatura);
   }
  
-  #iniciarVigia() {
-    this.#intervaloId = setInterval(async () => {
-      if (this.#verificando) return;
-      this.#verificando = true;
-      
-      try {
-        const urlAtual = this.#limparUrl(location.href);
-        const mudouUrl = urlAtual !== this.#cacheUrlLimpa;
+  async #verificarAlteracoes() {
+    if (this.#verificando) return;
+    this.#verificando = true;
+    
+    try {
+      const urlAtual = this.#limparUrl(location.href);
+      const mudouUrl = urlAtual !== this.#cacheUrlLimpa;
 
-        let mudouAssinatura = false;
-        let assinaturaAtual = null;
+      let mudouAssinatura = false;
+      let assinaturaAtual = null;
 
-        if (!mudouUrl) {
-          assinaturaAtual = await this.#gerarAssinaturaDOM();
-          mudouAssinatura = (assinaturaAtual && this.#cacheAssinatura) 
-              ? (assinaturaAtual !== this.#cacheAssinatura)
-              : false;
-        }
-
-        if (mudouUrl || mudouAssinatura) {
-          if (mudouUrl && !assinaturaAtual) assinaturaAtual = await this.#gerarAssinaturaDOM();
-          
-          this.#lidarComMudanca(urlAtual, assinaturaAtual);
-        }
-
-        console.log('nao mudou ')
-
-      } finally {
-        this.#verificando = false; // 1.3
+      if (!mudouUrl) {
+        assinaturaAtual = await this.#gerarAssinaturaDOM();
+        mudouAssinatura = (assinaturaAtual && this.#cacheAssinatura) 
+            ? (assinaturaAtual !== this.#cacheAssinatura)
+            : false;
       }
-    }, 1000);
+
+      if (mudouUrl || mudouAssinatura) {
+        if (mudouUrl && !assinaturaAtual) {
+            assinaturaAtual = await this.#gerarAssinaturaDOM();
+        }
+        
+        // this.#lidarComMudanca(urlAtual, assinaturaAtual);
+        console.log("Mudança detectada! Preparando para chamar lidarComMudanca...");
+      } else {
+        console.log('nao mudou');
+      }
+
+    } finally {
+      this.#verificando = false; 
+    }
   }
+
+  #ativarMonitoramentoURL() {
+    const interceptarHistory = (tipo) => {
+      const original = history[tipo];
+
+      // Eu estava aqui, o problema e que esse trecho n e executado automanticamente
+      // e sim somente com injecao via console.
+      // a teoria e que os flameworks estao me atrapalhando.
+      // provavelmente estou rodando o meu codigo no timing errado ou alguma coisa
+      // desconhecida
+      // provavel solucao, injetar uma tag <script> so esta no web_acess n basta.
+    
+      return function() {
+        const resultado = original.apply(this, arguments); // 2.1
+        window.dispatchEvent(new Event('urlMudouSilenciosamente'));
+        return resultado;
+      }
+    }
+
+    if (!history._rastreado) {
+      history.pushState = interceptarHistory('pushState');
+      history.replaceState = interceptarHistory('replaceState');
+      history._rastreado = true;
+    }
+
+    window.addEventListener('urlMudouSilenciosamente', () => console.log('url mudou'))
+    window.addEventListener('popstate', () => console.log('clicou nos bnts do navegador'));
+  }
+
 
   async #lidarComMudanca(novaUrl, novaAssinatura) {
     console.log('--- INÍCIO DA DETECÇÃO ---');
@@ -182,4 +215,7 @@ export class UrlMonitor {
         Para o numero n ficar grande demais.
   1.8 - Converte o resultado para positivo e depois para Base36 (letras minúsculas e números)
   1.9 - Formato esperado: hash1-hash2 (Ex: "qum1ig-s1ed6i")
+  2.0 - usamos arrow function aqui para podermos usar o this da classe e quando o debounce for usala n quebrar,
+        ja que funcoes anonimas herdam o this.
+  2.1 - para n gerar falsos positivos
 */
