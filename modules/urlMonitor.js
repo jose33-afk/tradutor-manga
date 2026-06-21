@@ -146,28 +146,12 @@ export class UrlMonitor {
   }
 
   #ativarMonitoramentoURL() {
-    const interceptarHistory = (tipo) => {
-      const original = history[tipo];
+    const scriptInjetar = document.createElement('script');
+    scriptInjetar.src = chrome.runtime.getURL('/injetor.js');
 
-      // Eu estava aqui, o problema e que esse trecho n e executado automanticamente
-      // e sim somente com injecao via console.
-      // a teoria e que os flameworks estao me atrapalhando.
-      // provavelmente estou rodando o meu codigo no timing errado ou alguma coisa
-      // desconhecida
-      // provavel solucao, injetar uma tag <script> so esta no web_acess n basta.
+    (document.head || document.documentElement).appendChild(scriptInjetar); // 2.1
     
-      return function() {
-        const resultado = original.apply(this, arguments); // 2.1
-        window.dispatchEvent(new Event('urlMudouSilenciosamente'));
-        return resultado;
-      }
-    }
-
-    if (!history._rastreado) {
-      history.pushState = interceptarHistory('pushState');
-      history.replaceState = interceptarHistory('replaceState');
-      history._rastreado = true;
-    }
+    //scriptInjetor.onload = () => scriptInjetor.remove();
 
     window.addEventListener('urlMudouSilenciosamente', () => console.log('url mudou'))
     window.addEventListener('popstate', () => console.log('clicou nos bnts do navegador'));
@@ -217,5 +201,5 @@ export class UrlMonitor {
   1.9 - Formato esperado: hash1-hash2 (Ex: "qum1ig-s1ed6i")
   2.0 - usamos arrow function aqui para podermos usar o this da classe e quando o debounce for usala n quebrar,
         ja que funcoes anonimas herdam o this.
-  2.1 - para n gerar falsos positivos
+  2.1 - É aquele esquema de usar o ||, funcina porque eu coloco parenteces para ordem de precedencia.
 */
