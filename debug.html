@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Storage Debugger - VS Code Theme</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-editor: #1e1e1e;
+      --bg-sidebar: #252526;
+      --bg-activity: #333333;
+      --text-normal: #d4d4d4;
+      --border-color: #3c3c3c;
+      
+      --vs-key: #9cdcfe;
+      --vs-string: #ce9178;
+      --vs-number: #b5cea8;
+      --vs-boolean: #569cd6;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-editor);
+      color: var(--text-normal);
+      margin: 0;
+      padding: 20px;
+    }
+
+    body.has-focus { overflow: hidden; }
+    body.has-focus .card:not(.focado) { filter: blur(3px); }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    h1 { margin: 0; font-size: 22px; font-weight: 500; color: #ffffff; }
+
+    h2 {
+      font-size: 16px;
+      font-weight: 500;
+      color: #858585;
+      margin-top: 30px;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn-group button {
+      background-color: var(--bg-sidebar);
+      color: var(--text-normal);
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+      margin-left: 10px;
+    }
+
+    .btn-group button:hover { background-color: #37373d; }
+
+    #btn-atualizar { border-color: #007acc; color: #4fc1ff; }
+    #btn-limpar { border-color: #f48771; color: #f48771; }
+    
+    .grid-dados {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: #151515;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      cursor: pointer;
+      transition: transform 0.2s ease, filter 0.3s ease;
+    }
+
+    .card.focado {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 46vw;
+      height: 60vh;
+      max-height: 80vh;
+      z-index: 9999;
+      box-shadow: 0 0 0 100vmax rgba(0,0,0,0.75), 0 20px 50px rgba(0,0,0,1);
+      border-color: #007acc;
+      cursor: default;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      background-color: var(--bg-sidebar);
+      font-family: 'Roboto Mono', monospace;
+      font-size: 13px;
+      padding: 10px 15px;
+      color: #e5c07b;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .card-header.global { color: #c586c0; }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Roboto Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-normal);
+    }
+
+    .token-key { color: var(--vs-key); font-weight: 500; }
+    .token-string { color: var(--vs-string); }
+    .token-number { color: var(--vs-number); }
+    .token-boolean { color: var(--vs-boolean); font-weight: bold; }
+    .token-null { color: var(--vs-boolean); font-weight: bold; }
+
+    .vazio {
+      text-align: center;
+      color: #5a5a5a;
+      font-style: italic;
+      padding: 40px;
+      font-size: 15px;
+      border: 1px dashed var(--border-color);
+      border-radius: 6px;
+    }
+
+    /* Layout Interno do Modal de Foco e Botão X */
+    .btn-fechar {
+      float: right;
+      cursor: pointer;
+      color: #f48771;
+      display: none;
+      padding: 0 5px;
+      font-size: 14px;
+    }
+    
+    .btn-fechar:hover { color: #fff; }
+    .card.focado .btn-fechar { display: block; }
+
+    .content-wrapper {
+      display: flex;
+      background-color: #1e1e1e;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    .painel-atual, .painel-antigo {
+      padding: 15px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    
+    .painel-antigo { 
+      display: none; 
+      border-right: 1px dashed var(--border-color); 
+    }
+    
+    .card.focado .painel-antigo { display: block; }
+
+    .painel-title {
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 11px;
+      color: #858585;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      display: none;
+      font-weight: bold;
+    }
+    
+    .card.focado .painel-title { display: block; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📦 Inspetor de Armazenamento Global</h1>
+    <div class="btn-group">
+      <button id="btn-atualizar">Force Refresh</button>
+      <button id="btn-limpar">Clear Storage</button>
+    </div>
+  </header>
+  
+  <h2>📌 Contextos de Abas Ativas</h2>
+  <div id="container-abas" class="grid-dados"></div>
+
+  <h2>⚙️ Outros Dados e Configurações Globais</h2>
+  <div id="container-globais" class="grid-dados"></div>
+
+  <script src="debug.js"></script>
+</body>
+</html>
+
+<!--chrome-extension://dnljjlpfgcfioljmhokkclkeogpoljji/debug.html-->

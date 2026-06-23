@@ -38,11 +38,12 @@ export class UrlMonitor {
     this.#isMangaDex = location.hostname.includes('mangadex.org');
     this.#cacheUrlLimpa = this.#limparUrl(location.href);
     this.#cacheAssinatura = await this.#gerarAssinaturaDOM();
+    console.log(this.#cacheAssinatura)
     
-    // if (!this.#isAssinaturaValida(this.#cacheAssinatura)) {
-    //   console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
-    //   //chama o event managar para para resetar o pipeline.
-    // }
+    if (!this.#isAssinaturaValida(this.#cacheAssinatura)) {
+      console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
+      //chama o event managar para para resetar o pipeline.
+    }
 
     await this.#Utils.gerenciarStorage("salvar", { 
       cacheUrl: this.#cacheUrlLimpa, 
@@ -145,16 +146,18 @@ export class UrlMonitor {
     }
   }
 
+  // Eu estava terminando de testar a ativarMonitoramentoURL,
+  // eu estava analizando ce estava mudando a url e entrando normamente na funcao de verficaçao.
   #ativarMonitoramentoURL() {
     const scriptInjetar = document.createElement('script');
     scriptInjetar.src = chrome.runtime.getURL('/injetor.js');
 
     (document.head || document.documentElement).appendChild(scriptInjetar); // 2.1
     
-    //scriptInjetor.onload = () => scriptInjetor.remove();
+    scriptInjetar.onload = () => scriptInjetar.remove();
 
-    window.addEventListener('urlMudouSilenciosamente', () => console.log('url mudou'))
-    window.addEventListener('popstate', () => console.log('clicou nos bnts do navegador'));
+    window.addEventListener('urlMudouSilenciosamente', () => this.#gatilhoVerificacao());
+    window.addEventListener('popstate', () => this.#gatilhoVerificacao());
   }
 
 
