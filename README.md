@@ -1,6 +1,7 @@
 # Manga & Webcomic Translator
 
 ![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-orange.svg?style=for-the-badge)
+![Tech](https://img.shields.io/badge/Tech-Vanilla_JS-yellow.svg?style=for-the-badge)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-brightgreen.svg?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=for-the-badge)
 
