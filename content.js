@@ -642,14 +642,49 @@ const ScrollManager = {
 
 
 async function teste() {
-  const moldeUrl = await importarModulo("modules/urlMonitor.js", "UrlMonitor");
-  const aviso = await importarModulo("./avisoManager.js", "AvisoManager")
-  const instancia = new moldeUrl(aviso);
+  //URL monitor
+  // const moldeUrl = await importarModulo("modules/urlMonitor.js", "UrlMonitor");
+  // const aviso = await importarModulo("./avisoManager.js", "AvisoManager")
+  // const instancia = new moldeUrl(aviso);
 
-  instancia.init()
+  // instancia.init()
+
+
+  const Utils = await importarModulo("modules/utils.js", "utils");
+  
+  // testes 
+  const configObserverManga = {
+    seletorBase: 'img',
+    // 1.1: Ignora ícones da interface, pega só as páginas
+    filtroAmostras: (img) => img.offsetWidth > 300 && img.offsetHeight > img.offsetWidth,
+    // 1.2: Achou um container com 2+ imagens? É o alvo certo.
+    validador: (alvo) => alvo.getElementsByTagName('img').length >= 2,
+    qtdAmostras: 10, // Para o observer, 10 amostras já é mais que suficiente
+    fallback: document.body // Se der merda no site, observa o body para não quebrar o script
+  };
+
+  Utils.encontradorContainerPai(configObserverManga)
 }
 
 teste()
+
+
+
+async function testarEsperarElemento() {
+
+  const Utils = await importarModulo("modules/utils.js", "utils");
+  const tentativas = 30;
+  const retry = 500; 
+
+  console.log("⏳ Teste 1: Esperando o botão carregar...");
+  
+  const alvoBotao = await Utils.awaitDomElement('img');
+  
+  console.log(await alvoBotao)
+}
+
+testarEsperarElemento();
+
 /*
   - POS ISSO EU POSSO VOLTAR PRO PIPELINE 
   - E DEPOIS PRO IMGSCANNER.

@@ -8,6 +8,8 @@ export class UrlMonitor {
   #verificando = false;
   #isMangaDex = false;
   #gatilhoVerificacao = null;
+  #observer = null;
+  #monitorDOM = null; 
 
   constructor(avisoManager) {
     if (!avisoManager || typeof avisoManager.verificarSecontinua !== 'function') {
@@ -15,11 +17,16 @@ export class UrlMonitor {
     }
 
     this.#Avisos = avisoManager;
+
+    this.#monitorDOM = new MonitorDom(() => {
+      if (typeof this.#gatilhoVerificacao === 'function') {
+        this.#gatilhoVerificacao();
+      }
+    });
   }
 
   destroy() {
     if (this.#intervaloId) clearInterval(this.#intervaloId);
-
     this.#intervaloId = null;
     this.#cacheUrlLimpa= null;
     this.#cacheAssinatura = null;
@@ -38,7 +45,6 @@ export class UrlMonitor {
     this.#isMangaDex = location.hostname.includes('mangadex.org');
     this.#cacheUrlLimpa = this.#limparUrl(location.href);
     this.#cacheAssinatura = await this.#gerarAssinaturaDOM();
-    console.log(this.#cacheAssinatura)
     
     if (!this.#isAssinaturaValida(this.#cacheAssinatura)) {
       console.error("Erro Crítico: Falha no sistema unificado de identificação (Assinatura do DOM falhou ou página está sem imagens)!");
@@ -52,7 +58,6 @@ export class UrlMonitor {
     
     
     this.#gatilhoVerificacao = this.#Utils.debounce(() => this.#verificarAlteracoes(), 500); //2.0
-    this.#ativarMonitoramentoURL();
   }
 
   #limparUrl(urlBruta) {
@@ -146,8 +151,6 @@ export class UrlMonitor {
     }
   }
 
-  // Eu estava terminando de testar a ativarMonitoramentoURL,
-  // eu estava analizando ce estava mudando a url e entrando normamente na funcao de verficaçao.
   #ativarMonitoramentoURL() {
     const scriptInjetar = document.createElement('script');
     scriptInjetar.src = chrome.runtime.getURL('/injetor.js');
@@ -159,7 +162,6 @@ export class UrlMonitor {
     window.addEventListener('urlMudouSilenciosamente', () => this.#gatilhoVerificacao());
     window.addEventListener('popstate', () => this.#gatilhoVerificacao());
   }
-
 
   async #lidarComMudanca(novaUrl, novaAssinatura) {
     console.log('--- INÍCIO DA DETECÇÃO ---');
@@ -185,6 +187,26 @@ export class UrlMonitor {
   }
 }
 
+class MonitorDom {
+  #observer = null;
+  #estadoAtual = null;
+  #funcaoParaAvisarPai = null; 
+  #cacheVerificacaoImgs = new Set();
+  #LIMITE_FILA = 15;
+
+  constructor(callbackDeAviso) {
+    if (!callbackDeAviso || typeof callbackDeAviso !== 'function') {
+      throw new Error("callbackDeAviso inválido ou não carregado corretamente.");
+    }
+
+    this.#funcaoParaAvisarPai = callbackDeAviso;
+  }
+
+  // iniciarMonitoramento(estado) {
+    
+  // }
+}
+
 /*
   1.1 - MangaDex ultiliza um sisteminha que adiciona que fica mudando um numero no final da URL,
         e toda vez que muda uma imagem rolando para baixo  meu programa detecta como se tivesse mudado de capitolo.
@@ -205,4 +227,5 @@ export class UrlMonitor {
   2.0 - usamos arrow function aqui para podermos usar o this da classe e quando o debounce for usala n quebrar,
         ja que funcoes anonimas herdam o this.
   2.1 - É aquele esquema de usar o ||, funcina porque eu coloco parenteces para ordem de precedencia.
+  2.2  - Desativa o observer 
 */
