@@ -1,17 +1,24 @@
-globalThis.importarModulo = async function(nomeArquivo, nomeObj = null) {
-  try {
-    const caminho = chrome.runtime.getURL(nomeArquivo);
-    const modulo = await import(caminho);
+/** 
+* Dynamically imports a module by its extension-relative path
+* @param {string} fileName - Extension-relative path to the module file. Example: 'modules/eventManager.js'.
+* @param {string|null} [objname=null] - Name of the export to retrieve, as string. Example: 'EventManager'
+* @returns {Promise<Object|Function|null>} The requested export, or the whole module, or null on error.
+*/
 
-    if (nomeObj) {
-      if (!(nomeObj in modulo)) {
-        console.warn(`Aviso: '${nomeObj}' não foi exportado de '${nomeArquivo}'.`);
+globalThis.importModule = async function(fileName, objname = null) {
+  try {
+    const path = chrome.runtime.getURL(fileName);
+    const loadedModule = await import(path);
+
+    if (objname) {
+      if (!(objname in loadedModule)) {
+        console.warn(`Warning: ${objname} was not exported from ${fileName}.`);
       }
-      return modulo[nomeObj];
+      return loadedModule[objname];
     }
-    return modulo;
+    return loadedModule;
   } catch(e) {
-    console.error(`Falha crítica ao carregar: ${nomeArquivo}`, e);
+    console.error(`Critical failure while loading ${fileName}`, e);
     return null;
   }
 };

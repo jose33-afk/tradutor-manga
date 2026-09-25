@@ -1,11 +1,11 @@
-export class utils {
+class utils {
   static #config = null;
 
   static get config() {
     return this.#config;
   }
 
-  static esperar(ms) { 
+  static delay(ms) { 
     return new Promise(res => setTimeout(res, ms))
   }
 
@@ -93,7 +93,6 @@ export class utils {
 
     let elementosBase = Array.from(document.querySelectorAll(seletorBase));
     console.log(elementosBase)
-   
   }
 }
 
