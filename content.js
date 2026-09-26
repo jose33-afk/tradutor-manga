@@ -635,22 +635,36 @@ const ScrollManager = {
   },
 }
 
-async function testes() {
-  const eventManager = await importModule('./modules/eventManager.js', 'eventManager');
-  eventManager.pararOperacaoGlobal()
-}
+// async function testes() {
+//   const eventManager = await importModule('./modules/eventManager.js', 'eventManager');
+//   eventManager.pararOperacaoGlobal()
+// }
 
-testes()
+//testes()
 
 /*
-  1.1 - eu verifico para ter certeza.
-  1.2 - nesse caso e melhor usar o tag pq a lista ja existe no DOM,
-        usando o queryAll eu teria que procurar e fazer a lista,
-        mas e um metodo limitado ja que so funciona com '<img>' e outras tags.
-  1.3 - o segundo alvo nao e o ALVO ensi e o proximo pai. 
-  1.5 - para atualizar caso de F5
-  1.6 - confirmando o recebimento do background, senao ele reclama.
-  1.7 - Ele checa a URL a cada 1 segundo (não pesa nada no navegador)
+  1.1-a - I check to make sure
+  1.1-b - eu verifico para ter certeza.
+  -----
+  1.2-a - In this case it's better to use the tag because the list already in the DOM.
+          Using queryAll I would have to search and build a list. 
+          But it's a limited method since it only works with '<img>' and other tags.
+  1.2.b - nesse caso e melhor usar o tag pq a lista ja existe no DOM,
+          usando o queryAll eu teria que procurar e fazer a lista,
+          mas e um metodo limitado ja que so funciona com '<img>' e outras tags.
+  ----- 
+  1.3-a - the second target is not ALVO itself, but the next parent.
+  1.3-b - o segundo alvo nao e o ALVO ensi e o proximo pai.  
+  -----
+  1.5-a - To update in case of F5.
+  1.5-b - para atualizar caso de F5
+  ----- 
+  1.6-a - confirming receipt to the background, otherwise it complains.
+  1.6-b - confirmando o recebimento do background, senao ele reclama.
+  -----
+  1.7-a - It checks the URL every 1 second (it doesn't put any load on the  browser).
+  1.7-b - Ele checa a URL a cada 1 segundo (não pesa nada no navegador)
+  ----- 
   1.9 - Evita rodar dois monitores ao mesmo tempo se chamar a função duas vezes
   2.0 - Nao precisa de nenhum codigo monitorando, pos quando se da F5 o content e recriado.
   2.1 - Trava de segurança

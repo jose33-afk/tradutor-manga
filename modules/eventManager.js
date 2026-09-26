@@ -4,7 +4,7 @@ class EventManager {
   #Utils = null;
 
   constructor() {
-    this.#Utils = 
+    this.#Utils = importModule('./modules/utils.js', 'utils');
   }
 
   get permissionToRun() {
@@ -25,5 +25,3 @@ class EventManager {
 }
 
 export const eventManager = new EventManager();
-
-

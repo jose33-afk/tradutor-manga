@@ -1,4 +1,4 @@
-class utils {
+class Utils {
   static #config = null;
 
   static get config() {
@@ -96,7 +96,7 @@ class utils {
   }
 }
 
-
+export const utils = new Utils();
 /*
   Classes static: Uso quando são funções utilitárias que não guardam histórico
   e cujas configurações centrais são definidas uma única vez, e nao lidam com eventos.
